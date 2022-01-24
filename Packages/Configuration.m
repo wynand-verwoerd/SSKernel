@@ -147,7 +147,6 @@ KernelOrigin:=KernelSpace[[2,1]];KernelBasis:=KernelSpace[[2,2]];
 
 (* DIAGNOSTIC VARIABLES *)
 
- TestConstraints;TestValues;TestOrigin;TestBasis; 
  
 Begin["`Private`"] (* Begin Private Context *) 
 
