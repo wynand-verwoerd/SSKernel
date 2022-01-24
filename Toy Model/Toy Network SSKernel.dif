@@ -1,0 +1,82 @@
+TABLE
+0,1
+"Created with the Wolfram Language : www.wolfram.com"
+VECTORS
+0,17
+""
+TUPLES
+0,1
+""
+DATA
+0,0
+""
+-1,0
+BOT
+1,0
+"""(* Full SS Kernel Analysis for Toy Network *)\n(*  Model Toy Network  with uncapped kernel of type Compact\n calculated on Tue 11 Jan 2022 in 1.77 seconds. *)"""
+-1,0
+BOT
+1,0
+"""\n(* Kernel Space Data Structure *)"""
+-1,0
+BOT
+1,0
+"{{{{-1.}, {1.}}, {0.43301270189221924, 0.43301270189221924}}, {{2.5, 1.25, 0, 1., 1., 0.25, 2.5, 1.25, 1.25}, {{0, 0, 0, -0.577350269189626, -0.577350269189626, 0.5773502691896258, 0, 0, 0}}}}"
+-1,0
+BOT
+1,0
+"""\n(* Periphery points in flux space *)"""
+-1,0
+BOT
+1,0
+"{{2.5, 1.25, 0, 1.25, 1.25, 0, 2.5, 1.25, 1.25}, {2.5, 1.25, 0, 0.75, 0.75, 0.5, 2.5, 1.25, 1.25}}"
+-1,0
+BOT
+1,0
+"""\n(* Fixed flux numbers and values *)"""
+-1,0
+BOT
+1,0
+"{{1, 2.5}, {2, 1.25}, {3, 0.}, {7, 2.5}, {8, 1.25}, {9, 1.25}}"
+-1,0
+BOT
+1,0
+"""\n(* Thin directions in flux space *)"""
+-1,0
+BOT
+1,0
+"{}"
+-1,0
+BOT
+1,0
+"""\n(* Ray vectors in flux space *)"""
+-1,0
+BOT
+1,0
+"{}"
+-1,0
+BOT
+1,0
+"""\n(* Maximal inscribed sphere radius and centre *)"""
+-1,0
+BOT
+1,0
+"{0.43301270189221924, {2.5, 1.25, 0, 1., 1., 0.25, 2.5, 1.25, 1.25}}"
+-1,0
+BOT
+1,0
+"""\n(* Reversible reactions becoming fixed in direction *)"""
+-1,0
+BOT
+1,0
+"{}"
+-1,0
+BOT
+1,0
+"""\n(* Names of reactions that form the flux space basis vectors *)"""
+-1,0
+BOT
+1,0
+"{""Reaction 1"", ""Reaction 2"", ""Reaction 3"", ""Reaction 4"", ""Reaction 5"", ""Reaction 6"", ""Reaction 7"", ""Reaction 8"", ""Reaction 9""}"
+-1,0
+EOD
