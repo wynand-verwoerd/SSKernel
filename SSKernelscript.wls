@@ -36,12 +36,7 @@ Print["No file was found at the path "<>datafile];Input["Press x and <Enter> to 
 success=True;
 If[StringLength[Species]<1,  Species =FileNameTake[datafile, {-2}]]; 
 result= CheckAbort[LoadModel[datafile, verbose], success = False];
-If[Length[feasiblepoints] < 1, success = False;
-     Print["LP solution of the imported FBA model has failed. Retry loading after
- adjusting the LP tolerance, or reversing max/min spec in the datafile.  "],
-  	 {S, bounds, objectselector, maxmin} = result];
-Heading = {"STAGE 1: Loaded data for " <> Species, "from " <> FileNameTake[datafile] <>
-    	 " with LP test in " <> Quiet@ToString[NumberForm[Testime, 3]] <> " seconds."};
+Heading = {"STAGE 1: Loaded data for " <> Species, "from " <> FileNameTake[datafile] };
 If[success,Print[Heading],Print["Load and test of the datafile has failed."];
 			Input["Press x and <Enter> to exit"];Exit[]];    	 
 
@@ -49,12 +44,16 @@ If[success,Print[Heading],Print["Load and test of the datafile has failed."];
 SStype = "FacetCone";
 Reductiontable = {{"Stage", " Constraints ", " Variables ", " Ray Yield "}};
 {RSStime, result} = Timing[
+   	result = CheckAbort[Check[DoFBA[Tolerances, True], success = False], success = False];    
+   		If[StringQ[result], success = False;
+     	Print["LP solution of the imported FBA model has failed. Retry Stage 2 after
+ adjusting the LP tolerance, or change LP method in the datafile.  "]];
 	result = CheckAbort[Check[
    		ReducedSolutionSpace[S, bounds, objectselector, maxmin, verbose],
    		 success = False],  success = False];
 	If[StringQ[result], success=False; Print[result]; PrependTo[feasiblepoints,{}]]];
  Heading = {"STAGE2: Reduced Solution Space for " <> Species, 
-   	"  Model " <> FileBaseName[datafile] <> " of type " <> ToString@SStype <> 
+   	"  Model " <> ModelName <> " of type " <> ToString@SStype <> 
    	"\n calculated on " <> DateString["DateShort"] <> " in " <> 
       Quiet@ToString[NumberForm[RSStime, 3]] <> " seconds."};
 If[success,Print[Heading],Print["RSS reduction of the solutionspace has failed."];
@@ -62,13 +61,13 @@ If[success,Print[Heading],Print["RSS reduction of the solutionspace has failed."
 		Input["Press x and <Enter> to exit"];Exit[]];    	 
 
 (* STAGE 3 *)
-{kerneltime, result} =  Timing[CheckAbort[Check[
-    	KernelFinder[samplesize, treesize, fixtol, verbose],
+{Kerneltime, result} =  Timing[CheckAbort[Check[
+    	KernelFinder[verbose],
     	 success = False], success = False]];
  Heading = {"STAGE 3: Capped Solution Space for " <> Species, 
      " Model " <> FileBaseName[datafile] <> " of uncapped type " <> ToString@SStype <>
        "\n calculated on " <> DateString["DateShort"] <> " in " <> 
-     Quiet@ToString[NumberForm[kerneltime, 3]] <> " seconds."};
+     Quiet@ToString[NumberForm[Kerneltime, 3]] <> " seconds."};
 If[success,
 	SSKinRSS = KernelSpace; 
     SSKinsphere = InscribedSphere;
@@ -100,7 +99,7 @@ If[success, Print[Heading],Print["Shape analysis of the closed SSK has failed."]
  Heading = {"STAGE 5: Full SS Kernel Analysis for " <> Species, 
      " Model " <> FileBaseName[datafile] <> "  with uncapped kernel of type " <> 
       ToString@SStype <> "\n calculated on " <> DateString["DateShort"] <> " in " <> 
-      Quiet@ToString[NumberForm[Testime + RSStime + kerneltime + Shapetime + Chordtime, 3]] <> 
+      Quiet@ToString[NumberForm[RSStime + Kerneltime + Shapetime + Chordtime, 3]] <> 
       " seconds."}; 
 If[success, Print[Heading],Print["Display of chords and centering has failed."];
 		SaveResults[{}, datafile];
@@ -112,7 +111,7 @@ If[success, Print[Heading],Print["Display of chords and centering has failed."];
 Heading = {"Full SS Kernel Analysis for " <> Species, 
      " Model " <> FileBaseName[datafile] <> "  with uncapped kernel of type " <> 
       ToString@SStype <> "\n calculated on " <> DateString["DateShort"] <> " in " <> 
-      Quiet@ToString[NumberForm[Testime + RSStime + kerneltime + Shapetime + Chordtime, 3]] <> 
+      Quiet@ToString[NumberForm[RSStime + Kerneltime + Shapetime + Chordtime, 3]] <> 
       " seconds."}; 
 CheckAbort[success=Check[
    	SaveResults[If[Length@ExportResults==0,{},ExportResults[[1;;8]]], datafile],
