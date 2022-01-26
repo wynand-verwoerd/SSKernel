@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[     23424,        533]
-NotebookOptionsPosition[     21713,        489]
-NotebookOutlinePosition[     22444,        513]
-CellTagsIndexPosition[     22401,        510]
+NotebookDataLength[     25164,        573]
+NotebookOptionsPosition[     23042,        523]
+NotebookOutlinePosition[     23773,        547]
+CellTagsIndexPosition[     23730,        544]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -33,6 +33,40 @@ Cell[TextData[{
    3.7723887599559536`*^9, {3.8247642987823915`*^9, 3.8247643295731397`*^9}, {
    3.824764398612626*^9, 3.824764414141156*^9}},
  TextAlignment->Center,ExpressionUUID->"f842d814-187d-4981-aafe-a7f72dcbc8ae"],
+
+Cell[CellGroupData[{
+
+Cell["Copyright", "Subsubsection",
+ CellChangeTimes->{{3.852137018051675*^9, 
+  3.8521370503250065`*^9}},ExpressionUUID->"26b488fa-518b-488d-9ae2-\
+2f4adc0503c1"],
+
+Cell["\[Copyright] Copyright 2022 Wynand Verwoerd", "Text",
+ CellChangeTimes->{{3.852137176007019*^9, 3.8521371987432556`*^9}, 
+   3.85213730515895*^9},ExpressionUUID->"40c23deb-5d60-432a-b0ab-\
+59a5e4fc8c39"],
+
+Cell["\<\
+The SSKernel program is free software; you can redistribute it and/or modify \
+it under the terms of the GNU General Public License as published by the Free \
+Software Foundation; either version 3 of the License, or (at your option) any \
+later version . 
+This program is distributed in the hope that it will be useful, but WITHOUT \
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS \
+FOR A PARTICULAR PURPOSE . See the GNU General Public License for more \
+details . 
+You should have received a copy of the GNU General Public License along with \
+this program . If not, see http://www.gnu.org/licenses/\
+\>", "Text",
+ CellChangeTimes->{{3.852137456506303*^9, 
+  3.8521375419276896`*^9}},ExpressionUUID->"9d96e980-84de-45c3-99f7-\
+f95b185e5051"],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{
+  3.852137299208074*^9},ExpressionUUID->"d1043eb6-aed2-4858-99f5-\
+75a8aecb50a2"]
+}, Open  ]],
 
 Cell[CellGroupData[{
 
@@ -515,23 +549,29 @@ Notebook[{
 Cell[CellGroupData[{
 Cell[580, 22, 616, 12, 633, "Title",ExpressionUUID->"f842d814-187d-4981-aafe-a7f72dcbc8ae"],
 Cell[CellGroupData[{
-Cell[1221, 38, 366, 6, 38, "Subsubsection",ExpressionUUID->"e42b54b7-805c-44c9-8357-b87afff49d60",
+Cell[1221, 38, 162, 3, 38, "Subsubsection",ExpressionUUID->"26b488fa-518b-488d-9ae2-2f4adc0503c1"],
+Cell[1386, 43, 209, 3, 37, "Text",ExpressionUUID->"40c23deb-5d60-432a-b0ab-59a5e4fc8c39"],
+Cell[1598, 48, 784, 14, 219, "Text",ExpressionUUID->"9d96e980-84de-45c3-99f7-f95b185e5051"],
+Cell[2385, 64, 128, 3, 29, "Input",ExpressionUUID->"d1043eb6-aed2-4858-99f5-75a8aecb50a2"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[2550, 72, 366, 6, 38, "Subsubsection",ExpressionUUID->"e42b54b7-805c-44c9-8357-b87afff49d60",
  InitializationCell->True],
-Cell[1590, 46, 4859, 99, 406, "Input",ExpressionUUID->"7a7ffb40-bb3a-467c-82f6-5bdda967e2fd",
+Cell[2919, 80, 4859, 99, 406, "Input",ExpressionUUID->"7a7ffb40-bb3a-467c-82f6-5bdda967e2fd",
  InitializationCell->True],
 Cell[CellGroupData[{
-Cell[6474, 149, 3104, 64, 386, "Input",ExpressionUUID->"2599ec67-0bd9-4189-bc1e-ef48476cd404",
+Cell[7803, 183, 3104, 64, 386, "Input",ExpressionUUID->"2599ec67-0bd9-4189-bc1e-ef48476cd404",
  InitializationCell->True],
-Cell[9581, 215, 250, 3, 33, "Output",ExpressionUUID->"555d8ea0-d46d-4f55-810c-242587b928ba"]
+Cell[10910, 249, 250, 3, 33, "Output",ExpressionUUID->"555d8ea0-d46d-4f55-810c-242587b928ba"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[9880, 224, 328, 6, 32, "Subsubsection",ExpressionUUID->"11ec06b7-8e35-4461-b606-341c2f9d8357",
+Cell[11209, 258, 328, 6, 32, "Subsubsection",ExpressionUUID->"11ec06b7-8e35-4461-b606-341c2f9d8357",
  InitializationCell->True],
-Cell[10211, 232, 11235, 245, 805, "Input",ExpressionUUID->"af0e2c94-e297-4dc5-adc7-3abc38e84878",
+Cell[11540, 266, 11235, 245, 805, "Input",ExpressionUUID->"af0e2c94-e297-4dc5-adc7-3abc38e84878",
  CellGroupingRules->{"GroupTogetherGrouping", 10000.},
  InitializationCell->True],
-Cell[21449, 479, 236, 6, 44, "Input",ExpressionUUID->"2342af6d-1019-4135-9f4b-01593806c153",
+Cell[22778, 513, 236, 6, 44, "Input",ExpressionUUID->"2342af6d-1019-4135-9f4b-01593806c153",
  InitializationCell->True]
 }, Closed]]
 }, Open  ]]
