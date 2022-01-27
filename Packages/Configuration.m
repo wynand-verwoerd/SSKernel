@@ -23,7 +23,7 @@ If[loadreset || !ValueQ[loadreset],
 loadreset=True; (* True means adjustable options are reset to values below when a new model is loaded. *)
 LPmethod=Automatic; (* Method used for initial bounded FBA: Simplex for small models and Interiorpoint for large.*)
 (* LPmethod="Simplex"; *)  (* When active, this forces the use of the nominated method.*)
-Tolerances=ToString[0.0001];	fixtol; (*	LoadModel function sets these tolerances according to the number of flux variables in a model *)
+Tolerances=ToString[0.0001];	fixtol=0.002; (*	LoadModel function sets these tolerances according to the number of flux variables in a model *)
 artificial = 100.; (* Flux upper limits larger than this are considered artificial and set to Infinity *)
 targetcount = 20; (* The number of random FBF's for initial progenitor estimate *)
 maxthin=0; (* A thickness less than this may be flattened to zero *)
