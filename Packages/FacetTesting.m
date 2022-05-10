@@ -174,7 +174,9 @@ listed in the argument facet *)
    SObjective, SXConstraints, SXRange, SValues, SX, rayfound, 
    tol = 0.00001},
   {cons, vars} = Dimensions[constraints];
-  FacetBasis = NullSpace[constraints[[facet]],Tolerance-> tol];
+  (* If the facet list is empty, we are dealing with the zero level facet
+  	i.e. the polytope itself, and no ray can be orthognal to that*)
+  FacetBasis = If[facet=={},{},NullSpace[constraints[[facet]],Tolerance-> tol]];
   If[FacetBasis=={},  If[printresult,
         Print["There is no orthogonal ray for facet " <> ToString[facet]]];
    		Return[False]];

@@ -26,8 +26,6 @@ SaveResults::usage=" Exports a verbal report and the calculated SSK and other re
 StageManager::usage=" Manages the main stages of the calculation in response to button press by user "
 UserInterface::usage=" Creates the control- and reportwindow contents. "
 (*
-MReader::usage="Funtion to read input data from a .m text file"
-MatReader::usage="Funtion to read input data from a MatLab .mat file"
 Reform::usage=" Reformulate model with fluxes positive and without artificial limits "
 Revert::usage=" Reconsolidate opposing reaction pairs and revert to space of variable fluxes, reversible reactions last"
 *)
@@ -88,47 +86,72 @@ If[Norm[objectselector] == 0.,
   progresslabel="Data input and testing completed.";
 ]
 
-ChooseArt[bounds_,printresult_:False] := 
- Module[{maxpower, bins, counts, gap, power, loart, labels, lowchart, 
-   hiart, hichart, choice}, lowers = bounds[[All, 1]]; uppers = bounds[[All, 2]];
-  (* Function to display bounds histogram and choose artificial limit value.
-  		It proposes a value based on inspecting histogram for gaps. *)
-  maxpower = Ceiling@Log10@Max@Abs@Cases[lowers,Except[Infinity]];
-  (* Set up logarithmic bins, negative intervals for each power of 10, 
-  all positve values lumped together *)
-  bins = Reverse@Table[-10.^power, {power, 0, maxpower}]; 
-  bins = Append[Riffle[bins, 5*Rest[bins]], 100];
-  counts = BinCounts[lowers, {bins}];
-  (* Now look for the last of up to 2 gaps, counting back from 0.
-  	This is taken as the value where artificial bounds start *)
-  gap = SequencePosition[Reverse@counts, {0, _?Positive}, 2]; 
-  loart = Switch[Length@gap, 0, artificial, _, Abs@bins[[-gap[[-1, 2]] - 1]]]; 
-  labels = Map[ScientificForm[#, ScientificNotationThreshold -> {0, 4}] &, bins];
-  lowchart = BarChart[counts, ScalingFunctions -> "Log", 
-    PlotLabel -> "Histogram of Lower Limits", 
-    ChartLabels -> Placed[labels, Axis, Rotate[#, Pi/4] &]];
-  
-  maxpower = Ceiling@Log10@Max@Cases[uppers,Except[Infinity]];
-  (* Set up logarithmic bins, intervals for each power of 10, 
-  all negative values lumped together *)
-  bins = Table[10.^power, {power, 0, maxpower}]; 
-  bins = Prepend[Riffle[bins, 5*bins], -1000.];
-  counts = BinCounts[uppers, {bins}];
-  (* Now look for the last of up to 2 gaps. This skips any gap if there are no negative values. 
-  	This is taken as the value where artificial bounds start *)
-  gap = SequencePosition[counts, {0, _?Positive}, 2]; 
-  hiart = Switch[Length@gap, 0, artificial, _,Abs@bins[[gap[[-1, 1]] + 1]]]; 
-  labels = Map[ScientificForm[#, ScientificNotationThreshold -> {0, 4}] &, Rest@bins];
-  hichart = BarChart[counts, ScalingFunctions -> "Log", 
-    PlotLabel -> "Histogram of Upper Limits", 
-    ChartLabels -> Placed[labels, Axis, Rotate[#, Pi/4] &]];
-  choice = Min[loart, hiart]; 
-  If[printresult,
-  	Print[GraphicsRow[{lowchart, hichart}, ImageSize -> Full, 
-    AspectRatio -> 0.35, Frame -> All, Spacings -> 0]];
-    Print["Proposed lowest absolute boundary value taken as artificial is " <> TextString[choice]]];
-  choice
-  ]
+ChooseArt[bounds_, printresult_ : False] := 
+ Module[{maxpower,lobins,hibins, counts,gap,power,loart,labels,lowchart,
+ 	hiart,hichart,choice, artificial,scaletop, lineat, showlo, showhi}, 
+  (*Function to display bounds histogram and choose artificial limit value.
+  It proposes a value based on inspecting histogram for gaps.*) 
+  artificial = 100.; (* lower limit for cases without a gap*)
+  (* Setting artificial to a reasonable value independent of the global setting
+  	avoids the situation that a low value inherited from a previous run causes
+  	proper upper bounds to be eliminated. This is only done in stage 1, the user
+  	remains free to choose a value before stage 2 is run. *)	
+  lowers = bounds[[All, 1]]; 
+  uppers = bounds[[All, 2]];
+  maxpower = Ceiling@Log10@Max[1, Cases[Abs@lowers, Except[Infinity]]];
+  maxpower = Min[maxpower, 6];
+  (*Set up logarithmic bins,negative intervals for each power of 10,
+  all positve values lumped together*)
+  lobins = Reverse@Table[-10.^power, {power, 0, maxpower}];
+  lobins = Append[Riffle[lobins, 5*Rest[lobins]], 100];
+  counts = BinCounts[lowers, {lobins}];
+  (*Now look for the last of up to 2 gaps,
+  counting back from 0. This is taken as the value where artificial bounds start*)
+  gap = SequencePosition[Reverse@counts, {0, _?Positive}, 2];
+(* Print[{"Lower bounds: counts and gaps ", lobins, counts, gap}]; *)
+  loart = Switch[Length@gap, 0, artificial, _, Abs@lobins[[-gap[[-1, 2]] - 1]]];
+(* Print[{"The lower bound gap, and lower artificial bound",gap,loart}]; *)
+  labels = Map[ScientificForm[#, ScientificNotationThreshold -> {0, 4}] &, lobins];
+  scaletop = Log@Max[counts];
+  lowchart = BarChart[counts, PlotRange -> {{Automatic, Automatic}, {0.1, Automatic}},
+  	ScalingFunctions -> "Log",  PlotLabel -> "Histogram of Lower Limits", 
+    ChartLabels -> Placed[labels, Axis, Rotate[#, Pi/4] &],
+    ImagePadding -> {{30, 0}, {40, 0}}, PlotRange -> {{Automatic, Automatic}, {0.1, Automatic}}];
+  maxpower = Ceiling@Log10@Max[100.,Cases[uppers, Except[Infinity]]];
+  maxpower = Min[maxpower, 6];
+  (*Set up logarithmic bins,intervals for each power of 10,
+  all negative values lumped together*)
+  hibins = Table[10.^power, {power, 0, maxpower}];
+  hibins = Prepend[Riffle[hibins, 5*hibins], -1000.];
+  counts = BinCounts[uppers, {hibins}];
+  (*Now look for the last of up to 2 gaps.This skips any gap if there \
+are no negative values.This is taken as the value where artificial bounds start*)
+  gap = SequencePosition[counts, {0, _?Positive}, 2];
+(* Print[{"Upper bounds: counts and gaps ", hibins, counts, gap}]; *)
+  hiart = Switch[Length@gap, 0, artificial, _, Abs@hibins[[gap[[-1, 1]] + 1]]];
+  choice = Max[artificial, Min[loart, hiart]]; (* Protect small models with  no gap *)
+  lineat = First@FirstPosition[lobins, n_ /; n >= -choice] + 0.5;
+  showlo = lobins[[1]] <= -choice <= lobins[[-1]];
+  lowchart=Show[lowchart, If[showlo, 
+  	Graphics[{Blue, Thickness[0.02], Line[{{lineat, -2.5}, {lineat, scaletop}}]}], {}]
+  	 ];  
+
+  labels = Map[ScientificForm[#, ScientificNotationThreshold -> {0, 4}] &,Rest@hibins];
+  scaletop = Log@Max[counts];
+  lineat = First@FirstPosition[hibins, n_ /; n >= choice] - 0.5;
+  showhi = hibins[[2]] <= choice <= hibins[[-1]];
+  hichart = BarChart[counts, PlotRange -> {{Automatic, Automatic}, {0.1, Automatic}},
+  	ScalingFunctions -> "Log",  PlotLabel -> "Histogram of Upper Limits", 
+    ChartLabels -> Placed[labels, Axis, Rotate[#, Pi/4] &],
+    ImagePadding -> {{30, 0}, {40, 0}}, PlotRange -> {{Automatic, Automatic}, {0.1, Automatic}}];
+  hichart=Show[hichart, If[showhi, 
+  	Graphics[{Blue, Thickness[0.02], Line[{{lineat, -2.5}, {lineat, scaletop}}]}], {}]
+  	];  
+  If[printresult, 
+   Print[GraphicsRow[{lowchart, hichart}, ImageSize -> Full, 
+     AspectRatio -> 0.35, Frame -> All, Spacings -> 0]];
+   Print["Proposed lowest absolute boundary value taken as artificial is " <> TextString[choice]]];
+  choice]
 
 SetAttributes[DoFBA, HoldFirst];  
 DoFBA[tolerances_, printresult_ : False] := 
@@ -205,6 +228,7 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
   (*If[Norm[objectselector]>0,*)
   (* Remove artificial limits, sort irreversible reactions first and split reversibles. *)
     {irreversibles, reversibles, negatives} = Reform[Stoichiometry, bounds, objectselector, artificial];
+	(* Print[{"irreversibles, reversibles, negatives",irreversibles, reversibles, negatives}];  *)
     {cons, vars} = Dimensions[Stoichiometry];
     cons = cons + objectcount + Count[Flatten@bounds, _?(Abs[#] < Infinity &)];
     AppendTo[Reductiontable, {"Remove artificial bounds, split reversibles", cons, vars, 0}];
@@ -216,6 +240,7 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
   progresscounter:=Clock[5]; progressrange=Indeterminate;
   (* Simplex needs to be used here, because HsnJ called subsequently relies on the feasible
    point it uses being located at a vertex, not interior, so it can construct the LP basis. *)
+(* Print[{"maxmin*objectselector, Stoichiometry, Svals, bounds,",maxmin*objectselector, Stoichiometry, Svals, bounds}]; *)
   {LPtime, result} = Timing[FBAflux = Quiet[Check[
     LinearProgramming[maxmin*objectselector, Stoichiometry, Svals, bounds, Reals, Method-> "Simplex",
      Tolerance -> LPtol ], 
@@ -314,7 +339,6 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
      Print["Check that after Hop, Skip and Jump, feasible points satisfy augment matrix conditions."];
    Map[Print[Max@Abs@Chop[augment[[All,-1]]-augment[[All,;;-2]].#, tol]]&,feasiblepoints]; 
 	*)
-  
    (* Revert to reversible reactions and set up the FFS to FS affine transform. *)
   NonfixTransform = 
   Revert[Stoichiometry, objectselector, bounds, ExpandedFeasibles, objective, 
@@ -339,7 +363,7 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
   ObSpaceTransform = {ObSpaceOrigin, ObSpaceBasis};
   obvars=Length[ObSpaceBasis];
   AppendTo[Reductiontable, {"Apply mass balance and fixed objective value  ", 0, obvars, 0}]; 
-  
+  	(* Print[{"ObSpaceTransform",ObSpaceTransform}]; *)  
   If[obvars == 0,
    ObSpaceTransform[[2]] = {0.,{{0.}}}; 
    SolutionSpace = {{{{1.}}, {0.}}, ObSpaceTransform};
@@ -369,7 +393,7 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
    	{newcons, newvals, redundancies} = RedundancyTrimmer[SScons, SSvals, {}, PrintResult];
    	      , Labeled[ProgressIndicator[progresscounter/cons], " Eliminating redundant constraints "]]; *)
    progressrange={0,cons};progresslabel=" Eliminating redundant RSS constraints ";
-   Print[Style[progresslabel, Blue, TextAlignment -> Center]];	      
+   Print[Style[progresslabel, Blue, TextAlignment -> Center]];	 
    {newcons, newvals, redundancies} = RedundancyTrimmer[SScons, SSvals, {}, PrintResult];
    progresslabel=" RSS redundant constraint elimination completed."; 
    progresscounter=0;
@@ -954,7 +978,8 @@ Repeating and/or reducing flattening, or using more LP chords, may avoid this.\n
    If[Printresult,
    	Print[Round[Norm[#],0.01]&
    			/@{feasible,reconstitute,Kernelpart,raypart+OrthoRay,shortfall}]];
-   fluxnorm = Norm@feasible; reconorm = Norm@reconstitute;
+   fluxnorm = Max[Norm@feasible,10.^-4]; 
+   reconorm = Max[Norm@reconstitute,10.^-4];
    fluxdif = Chop[100*Abs[fluxnorm-reconorm]/Sqrt[fluxnorm*reconorm], 10.^-6];
    deviation = If[fluxnorm > LPtol && reconorm > LPtol,
     Chop[VectorAngle[feasible, reconstitute]*(180/Pi), 10.^-6],0.];
@@ -1159,7 +1184,10 @@ required calculations. *)
  adjusting the LP tolerance, or change LP method in the datafile.  ", Red]]];
    	result = CheckAbort[Check[ReducedSolutionSpace[S, bounds, objectselector, maxmin, verbose],
    		 success = False], 	 success = False];
-    If[StringQ[result], success=False; Print[result]; PrependTo[feasiblepoints,{}]]
+    If[StringQ[result], success=False; 
+    	Print[Style[result<>"\nCheck that artificial bound value is large enough to
+    	avoid excluding proper bounds.",Red]]; 
+    	PrependTo[feasiblepoints,{}]]
      ];
      
      (* Could also use FileBaseName[datafile] instead of ModelName *)

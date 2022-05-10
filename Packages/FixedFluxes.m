@@ -34,6 +34,7 @@ HopSkipnJump[tol_: 10.^-3,PrintResult_:False] :=
    untouched, until the end when all feasible points are transferred to the 
    variable flux subspace together.  *)
   feasible = feasiblepoints[[1]];
+  realuppers=uppers;
   {rows, cols} = Dimensions[augment];
 
   (* THE FIRST SKIP STEP  - 
@@ -86,7 +87,6 @@ HopSkipnJump[tol_: 10.^-3,PrintResult_:False] :=
  	as e.g.happens when there is no FBA objective and RSS is a simple cone. 
  	In that case, simply take the default capping radius.
  	*)
-    realuppers=uppers;
     tempmax=Max[ 2.Max@Abs@feasiblepoints[[1]], DefaultCap];
     uppers = uppers /. {_?(# > tempmax &) -> tempmax};
  
@@ -125,7 +125,6 @@ HopSkipnJump[tol_: 10.^-3,PrintResult_:False] :=
   progressrange={0,Length[fixvals]};
   
   fixvals = Hopper[feasible, tol, fixvals];
-
    If[PrintResult,Print[ToString[Length[fixvals]]<>
   " Confirmed fixes after doing the Hops. "]];
   uppers[[nonzerolows]] += lowers[[nonzerolows]];
@@ -136,7 +135,6 @@ HopSkipnJump[tol_: 10.^-3,PrintResult_:False] :=
   
   (* SECOND SKIP -  REMOVING THE NEWLY FOUND FIXED VARIABLES *)
   Skipper[feasible, fixvals];
-  
   (* Return a consolidated list of all fixed variables and their values, after
   transferring the global feasible points array to variable flux space *)
    fixvals = Union[orthos, nonorthos[[fixvals]]];

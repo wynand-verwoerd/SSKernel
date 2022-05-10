@@ -182,10 +182,12 @@ The data item "osenseSTR" is optional and if absent, the objective is maximized.
   vals = First@Transpose@vals;
   (* If the csense item is missing, assume all constraints to be equals 
   		Also, provide for the case that ineq comes through as a single string 
-  		of characters instead of a liust of characters *)
-  If[StringQ[ineq],
-  	If[ineq=="csense",ConstantArray[0,Length[vals]],ineq=StringPartition[ineq, 1]]];
+  		of characters instead of a list of characters *)
+(* Print[{"before processing, ineq =",ineq}]; *)
+  ineq=If[ineq=="csense", ConstantArray[0,Length[vals]],
+  				If[StringQ[ineq], StringPartition[ineq, 1]]];
   ineq = ineq /. {"E" -> 0, "L" -> -1, "G" -> 1};
+(* Print[{"after processing, ineq =",ineq}]; *)
   Svals = Transpose[{vals, ineq}];
   If[Svals != ConstantArray[{0, 0}, Length[S]], 
    Print["WARNING: The loaded model contains inequalities and/or 
