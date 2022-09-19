@@ -84,7 +84,7 @@ chordpic={}; cenpic={}; flatplot={};
 
 (* GLOBAL VARIABLES FOR KernelSPACE CALCULATION  *)
 
-KernelSpaceVersion = " Version 1.01 April 2022 ";
+KernelSpaceVersion = " Version 1.02 September 2022 ";
 DataDirectory=""; (*Base directory path, datafile specified relative to this in command line  version *)
 (* DataDirectory="C:/Users/John Smith/Documents/Data/"; *)       (*EXAMPLE 1: Forward slashes *)
 (* DataDirectory="C:\\Users\\John Smith\\Documents\\Data\\"; *)  (*EXAMPLE 2: Note every \ needs to be doubled*)

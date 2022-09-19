@@ -142,7 +142,7 @@ FeasibleBoundedQ[RayMat_, constraints_, values_, FacetCols_,
     If[feasible == None, (*Print["Doing the LP feasibility test"];*)
       (* Set up the reduced LP feasibility test *)
       Fproj = IdentityMatrix[vars] - Finv.Fcon;
-      Gconstraints = NFcon.Fproj;
+      Gconstraints = Chop[NFcon.Fproj];
       {cons, vars} = Dimensions[Gconstraints];
       Objective = ConstantArray[0, vars];
       Values = Transpose[{SPhi, ConstantArray[-1, cons]}];
