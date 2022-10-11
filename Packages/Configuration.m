@@ -59,6 +59,7 @@ commandline=False; (* Whether the program was run from a script or batch file *)
 (* Control panel parameters *)
 panelback = ConstantArray[LightYellow,5]; (* Each panel coloured yellow when passive, green when calculating, pink if terminated unsucessfully *)
 available = {True, False, False, False, False, False};  (* switches for greying out control panel stage buttons *)
+reshuffle = False; (* Whether to randomly reorder reactions and metabolites before executing stage 2. *)
 verbose; (* Print details of progress *)
 automate; (* Whether to execute all main calculation stages without button prompting *)
 Species; (* Biological species; default is parent directory of model input file *)
@@ -73,7 +74,7 @@ Optiontable := Transpose@{{"Step time limit", "LP tolerance", "Fixed value toler
     "BFBF random greedy sample size", "Gready search mixing fraction", "Stop sampling when failure rate >",
     "Minimal, Maximal LP chord counts", "Maximal flips to find LP chords", 
      "Aspect ratios \[GreaterEqual] this are flattened",  "Diameters > this not flattened ",
-    "Default capping radius","Flux bounds \[GreaterEqual] this are taken as artificial"}, 
+    "Default capping radius","Flux bounds \[GreaterEqual] this\nare taken as artificial"}, 
     {timeconstraint,ToExpression@StringSplit[Tolerances, ","], fixtol, targetcount, treesize, samplesize, mixfraction, greedyfails, 
     	ToString@{chordmin, chordmax}, flipmax, maxaspect, maxthin,  
     	DefaultCap, artificial}};
@@ -84,7 +85,7 @@ chordpic={}; cenpic={}; flatplot={};
 
 (* GLOBAL VARIABLES FOR KernelSPACE CALCULATION  *)
 
-KernelSpaceVersion = " Version 1.02 September 2022 ";
+KernelSpaceVersion = " Version 1.1 October 2022 ";
 DataDirectory=""; (*Base directory path, datafile specified relative to this in command line  version *)
 (* DataDirectory="C:/Users/John Smith/Documents/Data/"; *)       (*EXAMPLE 1: Forward slashes *)
 (* DataDirectory="C:\\Users\\John Smith\\Documents\\Data\\"; *)  (*EXAMPLE 2: Note every \ needs to be doubled*)

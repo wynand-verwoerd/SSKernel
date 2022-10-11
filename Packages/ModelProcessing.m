@@ -34,18 +34,20 @@ Begin["`Private`"] (* Begin Private Context *)
 
 LoadModel[DataFile_, printresult_]:=
 Module[{cons,vars, bigmodel = 1500 },
-progresslabel="Loading data and performing bounded LP calculation.";
+progresslabel="Loading data from input file.";
 Print[Style[progresslabel, Blue, TextAlignment -> Center]];
 Switch[FileExtension[DataFile],
   "m", MReader[DataFile, S, Svals, bounds, objectselector, 
    FBAvector, ReactionNames, MetaboliteNames, maxmin, printresult],
   "mat", MatReader[DataFile, S, Svals, bounds, objectselector, 
     FBAvector, ReactionNames, MetaboliteNames, maxmin, printresult],
+  "xml"|"sbml", SBMLReader[DataFile, S, Svals, bounds, objectselector, 
+    FBAvector, ReactionNames, MetaboliteNames, maxmin, printresult],
   _, Print["Invalid data file of type " <> FileExtension[DataFile]]];
 
-(* Having read a .mat file, create a .m file for testing purposes *)
+(* Having read a .mat or  SBML file, create a .m file for testing purposes *)
 (*
-exportfile = StringReplace[DataFile, "mat" -> "m"];
+exportfile = StringReplace[datafile, ".mat" | ".sbml" | ".xml" -> ".m"]
 Export[exportfile, {ModelName, S, bounds, objectselector, FBAvector, ReactionNames, 
 	MetaboliteNames, Switch[maxmin, -1, "max", 1, "min", _, "max"]}, "List"];
 *)
@@ -253,7 +255,7 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
   	 openflux = FBAflux; (* store the result in case of repeated reduction stage *)];
   progresslabel="Unbounded LP calculation is completed. ",
   FBAflux = openflux];
-  objective = objectselector.FBAflux;
+  objective = If[VectorQ[FBAflux], objectselector.FBAflux, 0.0];
   optimum = objectselector.feasiblepoints[[1]];
 	(* Print[{"Optimum, objective",optimum,objective}]; *)
   If[Abs[optimum - objective] < 3*Max[ToExpression@StringSplit[Tolerances, ","]], 
@@ -273,10 +275,12 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
     " and bounded objective value "<>TextString[optimum]<>
     " too large compared to LP tolerances; Continuing with new solution only."];
    ];
+   If[reshuffle, AppendTo[Processreport, 
+   	{Style["CAUTION - The stoichiometry matrix was randomly reshuffled, 
+   		so reactions and metabolites are now in a different order from the input data!  ", Blue ]}];];
    AppendTo[Processreport, 
    	{"All points in the solution space share the objective value " <> TextString[objective]}];
-(*	Processreport[[-1]] = {"All points in the solution space share the objective value " <>
-		 TextString[objective] }; *)
+
    
    maxflux=Max@Abs@FBAflux;
    If[fixtol > 0.1 maxflux, fixflag=True; Print["WARNING: the fixed flux tolerance exceeds 10% of the "<>
@@ -906,6 +910,7 @@ KernelDisplay[exportdata_, Printresult_:False] :=
   (*Print[Dimensions/@{exthindirs,exKernelBasis,exSSBasis,
   NonfixTransform[[2]]}];*)
   If[Length[fixdirs] > 0, 
+   fixdirs[[All, 1]] = ReactionNames[[fixdirs[[All, 1]]]];
    Processreport = Join[Processreport,
    	{{"The following reactions acquired fixed directions:"},
      {TextGrid@Partition[fixdirs,UpTo@5]}}]
@@ -1154,7 +1159,7 @@ required calculations. *)
     SelectionMove[EvaluationNotebook[], After, Notebook, 1],
     success = False; MessageDialog[" Input file is invalid! "]];
     Heading = {"Loaded data for " <> Species, "from " <> FileNameTake[datafile] <>
-    	 " with LP test in " <> Quiet@ToString[NumberForm[Loadtime, 3]] <> " seconds."};
+    	 " in " <> Quiet@ToString[NumberForm[Loadtime, 3]] <> " seconds."};
     Reductiontable={{}}; (* Poke the table so report window gets updated *)
   	If[success,
     LoadReports = {Reductiontable, Kerneltable, Processreport};
@@ -1178,10 +1183,11 @@ required calculations. *)
    	Frame -> True, Background -> Hue[0.16, 1, 1, .5]]; 
    
     {RSStime, result} = Timing[
-   	result = CheckAbort[Check[DoFBA[Tolerances, True], success = False], success = False];    
+     If[reshuffle,Shakeup[S]];	
+   	 result = CheckAbort[Check[DoFBA[Tolerances, True], success = False], success = False];    
    		If[StringQ[result], success = False;
-     	Print[Style["LP solution of the imported FBA model has failed. Retry Stage 2 after
- adjusting the LP tolerance, or change LP method in the datafile.  ", Red]]];
+     	Print[Style["LP solution of the imported FBA model has failed. 
+     	Tick the reshuffle box and/or adjust the LP tolerance before retrying Stage 2.", Red]]];
    	result = CheckAbort[Check[ReducedSolutionSpace[S, bounds, objectselector, maxmin, verbose],
    		 success = False], 	 success = False];
     If[StringQ[result], success=False; 
@@ -1300,156 +1306,155 @@ required calculations. *)
   ]
 
 UserInterface[controlwindow_, reportwindow_] := 
- Module[{stage1, stage2, stage3, stage4, stage5, monitor, progress, Controlbox, StatusReport}, 
-  stage1 = Panel[ Grid[{{
-  	FileNameSetter[Dynamic[datafile, (datafile = #; Species = FileNameTake[datafile, {-2}]) &], 
-        "Open", {"Metabolic models" -> {"*.mat", "*.m"}, "All files" -> {"*"}}], 
-    InputField[Dynamic[datafile], String, FieldHint -> "Choose the input file.", FieldSize -> 46],
-    	SpanFromLeft,SpanFromLeft },
-    {"Organism: ", 
-    	InputField[Dynamic[Species], String, 
-        	FieldHint -> "Default: parent directory name.",  FieldSize -> 12],
-		Optiontable[[1, 1]], 
-       	InputField[Dynamic[timeconstraint], Number, FieldSize -> 3], 
-       	"Option reset",Checkbox[Dynamic[loadreset]],       	
-       	Button[" Load ", StageManager["Loading", reportwindow]
-         , ImageSize -> 80, Enabled -> Dynamic@available[[1]], Method -> "Queued"]
-       }}, 
-       Spacings -> {1.6, 0}], 
-    Style["Stage 1:   Load and check FBA model", "Subsubtitle"],
+ Module[{stage1, stage2, stage3, stage4, stage5, monitor, progress, 
+   Controlbox, StatusReport}, 
+  stage1 = 
+   Panel[Grid[{{FileNameSetter[
+        Dynamic[datafile, (datafile = #; 
+           Species = FileNameTake[datafile, {-2}]) &], "Open", 
+           	{"Metabolic models" -> {"*.mat", "*.sbml", "*.xml", 
+           "*.m"}, "All files" -> {"*"}}], 
+       InputField[Dynamic[datafile], String, 
+        FieldHint -> "Choose the input file.", FieldSize -> 46], 
+       SpanFromLeft, SpanFromLeft}, {"Organism: ", 
+       InputField[Dynamic[Species], String, 
+        FieldHint -> "Default: parent directory name.", 
+        FieldSize -> 12], Optiontable[[1, 1]], 
+       InputField[Dynamic[timeconstraint], Number, FieldSize -> 3], 
+       "Option reset", Checkbox[Dynamic[loadreset]], 
+       Button[Style[" Load ", 10, Bold], 
+        StageManager["Loading", reportwindow], ImageSize -> 80, 
+        Background -> Lighter[Green, 0.95], 
+        Enabled -> Dynamic@available[[1]], Method -> "Queued"]}}, 
+     Spacings -> {1.6, 0}], 
+    Style["Stage 1:   Load and check FBA model", "Subsubtitle"], 
     Background -> Dynamic[panelback[[1]]]];
-    
-  stage2 = Panel[Grid[{
- 	{Tooltip[Optiontable[[2, 1]],
+  stage2 = 
+   Panel[Grid[{{Tooltip[Optiontable[[2, 1]], 
         "A single value used throughout, or a pair of values in braces; 
         the first is used for the initial bounded FBA only."], 
-       InputField[Dynamic[Tolerances], String, FieldSize -> 10],
+       InputField[Dynamic[Tolerances], String, FieldSize -> 10], 
        Optiontable[[3, 1]], 
-       InputField[Dynamic[fixtol], Number, FieldSize -> 3] 
-       },
-    {Optiontable[[14, 1]], SpanFromLeft, 
-       InputField[Dynamic[artificial], Number, FieldSize -> 8], Null,
-       Button[" Reduce ", StageManager["Reducing", reportwindow]
-        , ImageSize -> 80, Enabled -> Dynamic@available[[2]], 
-        Method -> "Queued"]
-       }},
-      Spacings -> {4.5, 0}]
-    , 
-    Style["Stage 2:   Reduction - Eliminate fixed fluxes and prismatic rays.", "Subsubtitle"], 
-  	Background -> Dynamic[panelback[[2]]]];
-  	
+       InputField[Dynamic[fixtol], Number, 
+        FieldSize -> 3]}, {Optiontable[[14, 1]], 
+       InputField[Dynamic[artificial], Number, FieldSize -> 8], 
+       "Reshuffle first", Checkbox[Dynamic[reshuffle]], 
+       Button[Style[" Reduce ", 10, Bold], 
+        StageManager["Reducing", reportwindow], ImageSize -> 80, 
+        Background -> Lighter[Green, 0.95], 
+        Enabled -> Dynamic@available[[2]], Method -> "Queued"]}}, 
+     Spacings -> {2.8, 0}], 
+    Style["Stage 2:   Reduction - Eliminate fixed fluxes and \
+prismatic rays.", "Subsubtitle"], 
+    Background -> Dynamic[panelback[[2]]]];
   stage3 = 
    Panel[Grid[{{Optiontable[[4, 1]], 
        InputField[Dynamic[targetcount], Number, FieldSize -> 3], 
        Optiontable[[6, 1]], 
-       InputField[Dynamic[samplesize], Number, FieldSize -> 3]},
-      {Optiontable[[5, 1]], 
+       InputField[Dynamic[samplesize], Number, 
+        FieldSize -> 3]}, {Optiontable[[5, 1]], 
        InputField[Dynamic[treesize], Number, FieldSize -> 5], 
        Optiontable[[8, 1]], 
-       InputField[Dynamic[greedyfails], Number, FieldSize -> 3]},
-      {Optiontable[[13, 1]], 
-       InputField[Dynamic[DefaultCap], Number, FieldSize -> 3],
-      Null, Null,
-       Button["  Cap  ", StageManager["Capping", reportwindow],
-        ImageSize -> 80, Enabled -> Dynamic@available[[3]], 
-        Method -> "Queued"]}}, Spacings -> {2.5, 0}], 
+       InputField[Dynamic[greedyfails], Number, 
+        FieldSize -> 3]}, {Optiontable[[13, 1]], 
+       InputField[Dynamic[DefaultCap], Number, FieldSize -> 3], Null, 
+       Null, Button[Style["  Cap  ", 10, Bold], 
+        StageManager["Capping", reportwindow], ImageSize -> 80, 
+        Background -> Lighter[Green, 0.95], 
+        Enabled -> Dynamic@available[[3]], Method -> "Queued"]}}, 
+     Spacings -> {2.4, 0}], 
     Style["Stage 3:   Ray matrix and Progenitor;   Coincidence and \
 tangent capping.", "Subsubtitle"], 
     Background -> Dynamic[panelback[[3]]]];
-    
   stage4 = 
    Panel[Grid[{{Optiontable[[9, 1]], 
        InputField[Dynamic[{chordmin, chordmax}], Expression, 
         FieldSize -> 5], Optiontable[[10, 1]], 
-       InputField[Dynamic[flipmax], Number, FieldSize -> 3]},
-      {Optiontable[[11, 1]], 
+       InputField[Dynamic[flipmax], Number, 
+        FieldSize -> 3]}, {Optiontable[[11, 1]], 
        InputField[Dynamic[maxaspect], Number, FieldSize -> 3], 
-		Tooltip[Optiontable[[12, 1]],
+       Tooltip[Optiontable[[12, 1]], 
         "This overrides the aspect ratio; choose 0 for no flattening, \
 Infinity to use aspect ratio only. "], 
-       InputField[Dynamic[maxthin], Expression, FieldSize -> 3],
-       Button[" Flatten ", StageManager["Shaping", reportwindow],
-        ImageSize -> 80, Enabled -> Dynamic@available[[4]], 
-        Method -> "Queued"]}}, Spacings -> {1.3, 0}], 
+       InputField[Dynamic[maxthin], Expression, FieldSize -> 3], 
+       Button[Style[" Flatten ", 10, Bold], 
+        StageManager["Shaping", reportwindow], ImageSize -> 80, 
+        Background -> Lighter[Green, 0.95], 
+        Enabled -> Dynamic@available[[4]], Method -> "Queued"]}}, 
+     Spacings -> {1.3, 0}], 
     Style["Stage 4:   Analyze SS Kernel shape;   Flatten large aspect \
 ratios.", "Subsubtitle"], Background -> Dynamic[panelback[[4]]]];
-
-  stage5 = Panel[Grid[{{
-       CancelButton["Exit SS Kernel", NotebookClose[reportwindow]; 
-        NotebookClose[controlwindow], ImageSize -> 120], Null, Null, 
-       Null,
-       
-       Button[" Export ", StageManager["Export", reportwindow]
-        , ImageSize -> 80, Enabled -> Dynamic@available[[6]], 
-        Method -> "Queued"],
-        
-        Button[" Display ", StageManager["Display", reportwindow]
-        , ImageSize -> 80, Enabled -> Dynamic@available[[5]], 
-        Method -> "Queued"]
-       
-       }},
-     Spacings -> {5.3, 0}], 
-    Style[
-     "Stage 5: Validation, Centering and Chord display ;    Export results.",
-      "Subsubtitle"], Background -> Dynamic[panelback[[5]]]];
-
-  monitor = Panel[Labeled[Tooltip[
-  	ProgressIndicator[Dynamic[progresscounter], 
-      Dynamic[progressrange], ImageSize -> {610, Automatic}], 
-      HoldForm[Dynamic[progresscounter]/Dynamic[progressrange[[2]]]]], 
-     Dynamic[progresslabel]], Background -> LightYellow];
-      
-  progress = Row[{Style["Running Commentary : verbose", "Subsubtitle"], 
+  stage5 = 
+   Panel[Grid[{{CancelButton[Style["Exit SS Kernel", 10, Bold], 
+        NotebookClose[reportwindow];
+        NotebookClose[controlwindow], ImageSize -> 80, 
+        Background -> Red], Null, Null, Null, 
+       Button[Style[" Export ", 10, Bold], 
+        StageManager["Export", reportwindow], ImageSize -> 80, 
+        Background -> Lighter[Green, 0.95], 
+        Enabled -> Dynamic@available[[6]], Method -> "Queued"], 
+       Button[Style[" Display ", 10, Bold], 
+        StageManager["Display", reportwindow], ImageSize -> 80, 
+        Background -> Lighter[Green, 0.95], 
+        Enabled -> Dynamic@available[[5]], Method -> "Queued"]}}, 
+     Spacings -> {4.6, 0}], 
+    Style["Stage 5: Validation, Centering and Chord display ;    \
+Export results.", "Subsubtitle"], 
+    Background -> Dynamic[panelback[[5]]]];
+  monitor = 
+   Panel[Labeled[
+     Tooltip[ProgressIndicator[Dynamic[progresscounter], 
+       Dynamic[progressrange], ImageSize -> {460, Automatic}], 
+      HoldForm[Dynamic[progresscounter]/Dynamic[progressrange[[2]]]]],
+      Dynamic[progresslabel]], Background -> LightYellow];
+  progress = 
+   Row[{Style["Running Commentary : verbose", "Subsubtitle"], 
      Checkbox[Dynamic[verbose]], 
-     "                                                 ",
+     "                                                 ", 
      Style["Automate stages", "Subsubtitle"], 
-     Checkbox[Dynamic[automate]]}, Spacer[20]];
-     
+     Checkbox[Dynamic[automate]]}, Spacer[15]];
   Controlbox = 
-   Panel[Column[{stage1, stage2, stage3, stage4, stage5, monitor, progress}, Spacer[20]],
-   	 Background -> LightGray(*, ImageSize\[Rule]Full*)];
-  
-  StatusReport = ExpressionCell[
-    Dynamic[Module[{combinedreport, table},
+   Panel[Column[{stage1, stage2, stage3, stage4, stage5, monitor, 
+      progress}, Spacer[20]], Background -> LightGray(*,
+    ImageSize\[Rule]Full*)];
+  StatusReport = 
+   ExpressionCell[
+    Dynamic[Module[{combinedreport, table}, 
       table = Join[Reductiontable, Kerneltable];
-      combinedreport = If[Length[Processreport] > 0 || Length[table] > 0, 
-        Column[{Style[Heading[[1]], "Subtitle"], Style[Heading[[2]], "Subsubtitle"],
+      combinedreport = 
+       If[Length[Processreport] > 0 || Length[table] > 0, 
+        Column[{Style[Heading[[1]], "Subtitle"], 
+          Style[Heading[[2]], "Subsubtitle"], 
           Row[{TableForm[
              Optiontable[[;; Ceiling[Length[Optiontable]/2]]], 
              TableSpacing -> {1, 3}], 
             TableForm[Optiontable[[-Floor[Length[Optiontable]/2] ;;]],
-              TableSpacing -> {1, 3}]}, "      "],
-          
+              TableSpacing -> {1, 3}]}, "      "], 
           If[Length[table] > 1, 
            TableForm[table[[2 ;;, 2 ;;]], 
             TableHeadings -> {table[[2 ;;, 1]], table[[1, 2 ;;]]}], 
-           Null], TableForm[Flatten@Processreport],
-          
+           Null], TableForm[Flatten@Processreport], 
           If[Length[Validations] > 0, 
-           Labeled[
-            Grid[{{Style["FULL\nSS KERNEL ", Bold], 
+           Labeled[Grid[{{Style["FULL\nSS KERNEL ", Bold], 
                TableForm[Validations[[1]], 
                 TableHeadings -> tabheads]}, 
               If[Length[Validations] == 
                 1, {}, {Style["FLATTENED\nSS KERNEL ", Bold], 
                 TableForm[
-                 Prepend[
-                  Validations[[2]], {"            ", "        ", 
-                   "          "}], 
+                 Prepend[Validations[[2]], {"            ", 
+                   "        ", "          "}], 
                  TableHeadings -> {Prepend[tabheads[[1]], " "], 
                    None}]}]}, 
              Background -> {Automatic, {LightBlue, LightYellow}}, 
              Dividers -> {{{1}}, {{-1}, {1}}}, Alignment -> Left], 
-            
             "\nVALIDATION TEST: Deconstruct FBA solutions (with/without artificial bounds) 
                 	into the sum of a kernel flux, and a flux along a ray direction. 
                 	Agreement between actual and reconstituted solutions are indicated by % discrepancy
                 	of total flux, and angle in degrees between their directions in flux space.", Top], Null]},
-         Dividers -> Center, Spacings -> 2]
-        , 
+             Dividers -> Center, 
+         Spacings -> 2], 
         Style["          Nothing to report          ", 
-         "Subsection"]]]],
-    "Output", FontSize -> 10];
+         "Subsection"]]]], "Output", FontSize -> 10];
   {Controlbox, StatusReport}]
   
   
