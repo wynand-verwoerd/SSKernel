@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[     25207,        573]
+NotebookDataLength[     25156,        572]
 NotebookOptionsPosition[     23086,        523]
-NotebookOutlinePosition[     23817,        547]
-CellTagsIndexPosition[     23774,        544]
+NotebookOutlinePosition[     23821,        547]
+CellTagsIndexPosition[     23778,        544]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -425,8 +425,8 @@ Cell[BoxData[{
   ";"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
-   RowBox[{"SetSelectedNotebook", "[", "controlwindow", "]"}], ";"}], 
-  "\[IndentingNewLine]", "  "}], "\n", 
+   RowBox[{"SetSelectedNotebook", "[", "controlwindow", "]"}], ";"}], "\n", 
+  "  "}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{"reportwindow", "=", 
@@ -524,13 +524,13 @@ Cell[BoxData[
 InitializationCellEvaluation->True,
 InitializationCellWarning->False,
 WindowSize->{852, 543},
-WindowMargins->{{442, Automatic}, {Automatic, 73}},
+WindowMargins->{{269.25, Automatic}, {Automatic, 96}},
 WindowElements->{"VerticalScrollBar", "MenuBar"},
 TaggingRules->{
  "PresenterSettings" -> {
    "ShowToolbar" -> True, "SlideBreakStyles" -> {}, "ShowSlideBreaks" -> True,
      "Dialogs" -> {}}},
-FrontEndVersion->"12.3 for Microsoft Windows (64-bit) (July 9, 2021)",
+FrontEndVersion->"13.1 for Microsoft Windows (64-bit) (June 16, 2022)",
 StyleDefinitions->FrontEnd`FileName[{"PresenterTools"}, "Sky.nb", 
   CharacterEncoding -> "UTF-8"],
 ExpressionUUID->"2f7f20dd-2422-4450-a062-e20b89a1c16e"
@@ -569,7 +569,6 @@ Cell[CellGroupData[{
 Cell[11253, 258, 328, 6, 32, "Subsubsection",ExpressionUUID->"11ec06b7-8e35-4461-b606-341c2f9d8357",
  InitializationCell->True],
 Cell[11584, 266, 11235, 245, 805, "Input",ExpressionUUID->"af0e2c94-e297-4dc5-adc7-3abc38e84878",
- CellGroupingRules->{"GroupTogetherGrouping", 10000.},
  InitializationCell->True],
 Cell[22822, 513, 236, 6, 44, "Input",ExpressionUUID->"2342af6d-1019-4135-9f4b-01593806c153",
  InitializationCell->True]

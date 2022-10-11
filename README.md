@@ -3,7 +3,7 @@ Extraction of the compact kernel of an FBA model of cellular metabolism: Mathema
 
 This repository implements the Solution Space Kernel (SSK) analysis of FBA solution spaces, as fully documented in the book:
 
-W. S. Verwoerd, The Compact Kernel of a Metabolic Flux Balance Solution Space, World Scientific Publishing Co., Singapore, 2022 (to be published); ISBN ???????
+W. S. Verwoerd, The Compact Kernel of a Metabolic Flux Balance Solution Space, World Scientific Publishing Co., Singapore, October 2022 ; ISBN 978-981-12-5583-0, doi:10.1142/12821 .
 
 as descibed in the following summary.
 
