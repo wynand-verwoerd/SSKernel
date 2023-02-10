@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[     25156,        572]
-NotebookOptionsPosition[     23086,        523]
-NotebookOutlinePosition[     23821,        547]
-CellTagsIndexPosition[     23778,        544]
+NotebookDataLength[     25602,        582]
+NotebookOptionsPosition[     23477,        532]
+NotebookOutlinePosition[     24212,        556]
+CellTagsIndexPosition[     24169,        553]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -184,9 +184,11 @@ Cell[CellGroupData[{
 Cell[BoxData[{
  RowBox[{
   RowBox[{"SetDirectory", "[", 
-   RowBox[{
-    RowBox[{"NotebookDirectory", "[", "]"}], "<>", "\"\<\\\\Packages\>\""}], 
-   "]"}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<Packages\>\""}], 
+     "}"}], "]"}], "]"}], ";"}], "\[IndentingNewLine]", 
  RowBox[{"Get", "[", "\"\<Configuration`\>\"", "]"}], "\n", 
  RowBox[{
   RowBox[{"LUlogo", "=", 
@@ -219,9 +221,11 @@ Cell[BoxData[{
  RowBox[{"Get", "[", "\"\<Capping`\>\"", "]"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{"PackagesDirectory", "=", 
-   RowBox[{
-    RowBox[{"NotebookDirectory", "[", "]"}], "<>", "\"\<\\\\Packages\>\""}]}],
-   ";"}], "\[IndentingNewLine]", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<Packages\>\""}], 
+     "}"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{"ResetDirectory", "[", "]"}], ";"}], "\[IndentingNewLine]", 
  RowBox[{
@@ -244,8 +248,9 @@ Cell[BoxData[{
    3.7722205715579596`*^9}, 3.772220959323928*^9, {3.7722210073702545`*^9, 
    3.7722210285993347`*^9}, 3.7722212115256844`*^9, 3.77222133014952*^9, {
    3.772223380336997*^9, 3.772223399042879*^9}, 3.7722234517306757`*^9, {
-   3.780089215695197*^9, 3.7800892179295626`*^9}},
- CellLabel->"In[78]:=",ExpressionUUID->"2599ec67-0bd9-4189-bc1e-ef48476cd404"],
+   3.780089215695197*^9, 3.7800892179295626`*^9}, {3.8786642573705444`*^9, 
+   3.878664268064905*^9}},ExpressionUUID->"2599ec67-0bd9-4189-bc1e-\
+ef48476cd404"],
 
 Cell[BoxData["$Aborted"], "Output",
  CellChangeTimes->{3.8388579942582273`*^9, 3.838858031227336*^9, 
@@ -405,8 +410,11 @@ Cell[BoxData[{
        RowBox[{"BoxData", "[", 
         RowBox[{"ToBoxes", "[", "Controlbox", "]"}], "]"}], ",", 
        "\"\<DockedCell\>\""}], "]"}]}], ",", 
-    RowBox[{"WindowTitle", "\[Rule]", "\"\<SSKernel Control window\>\""}], 
-    ",", 
+    RowBox[{"WindowTitle", "\[Rule]", 
+     RowBox[{
+     "\"\<SSKernel\>\"", "<>", "KernelSpaceVersion", "<>", 
+      "\"\<Control window\>\""}]}], ",", 
+    RowBox[{"WindowToolbars", "->", "None"}], ",", 
     RowBox[{"WindowElements", "\[Rule]", 
      RowBox[{"{", 
       RowBox[{
@@ -421,12 +429,12 @@ Cell[BoxData[{
         RowBox[{"0", ",", "0"}], "}"}]}], "}"}]}], ",", 
     RowBox[{"WindowSize", "\[Rule]", 
      RowBox[{"{", 
-      RowBox[{"700", ",", "Automatic"}], "}"}]}]}], "]"}], 
+      RowBox[{"Medium", ",", "Automatic"}], "}"}]}]}], "]"}], 
   ";"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
-   RowBox[{"SetSelectedNotebook", "[", "controlwindow", "]"}], ";"}], "\n", 
-  "  "}], "\[IndentingNewLine]", 
+   RowBox[{"SetSelectedNotebook", "[", "controlwindow", "]"}], ";"}], 
+  "\[IndentingNewLine]", "  "}], "\n", 
  RowBox[{
   RowBox[{
    RowBox[{"reportwindow", "=", 
@@ -507,8 +515,9 @@ Cell[BoxData[{
    3.823618394041165*^9, 3.82361840438307*^9}, {3.823618550102992*^9, 
    3.823618554967441*^9}, {3.823618891988715*^9, 3.8236192520359573`*^9}, {
    3.8242319016709604`*^9, 3.8242319340540857`*^9}, {3.8242319705299864`*^9, 
-   3.8242319873542023`*^9}, {3.824766688387101*^9, 
-   3.8247666923465185`*^9}},ExpressionUUID->"af0e2c94-e297-4dc5-adc7-\
+   3.8242319873542023`*^9}, {3.824766688387101*^9, 3.8247666923465185`*^9}, {
+   3.8836051757290187`*^9, 3.8836051858485613`*^9}, {3.8841137299187255`*^9, 
+   3.8841137424158688`*^9}},ExpressionUUID->"af0e2c94-e297-4dc5-adc7-\
 3abc38e84878"],
 
 Cell[BoxData[
@@ -524,13 +533,13 @@ Cell[BoxData[
 InitializationCellEvaluation->True,
 InitializationCellWarning->False,
 WindowSize->{852, 543},
-WindowMargins->{{269.25, Automatic}, {Automatic, 96}},
+WindowMargins->{{81, Automatic}, {51, Automatic}},
 WindowElements->{"VerticalScrollBar", "MenuBar"},
 TaggingRules->{
  "PresenterSettings" -> {
    "ShowToolbar" -> True, "SlideBreakStyles" -> {}, "ShowSlideBreaks" -> True,
      "Dialogs" -> {}}},
-FrontEndVersion->"13.1 for Microsoft Windows (64-bit) (June 16, 2022)",
+FrontEndVersion->"13.2 for Microsoft Windows (64-bit) (November 18, 2022)",
 StyleDefinitions->FrontEnd`FileName[{"PresenterTools"}, "Sky.nb", 
   CharacterEncoding -> "UTF-8"],
 ExpressionUUID->"2f7f20dd-2422-4450-a062-e20b89a1c16e"
@@ -557,20 +566,21 @@ Cell[1773, 53, 784, 14, 219, "Text",ExpressionUUID->"9d96e980-84de-45c3-99f7-f95
 Cell[CellGroupData[{
 Cell[2594, 72, 366, 6, 38, "Subsubsection",ExpressionUUID->"e42b54b7-805c-44c9-8357-b87afff49d60",
  InitializationCell->True],
-Cell[2963, 80, 4859, 99, 406, "Input",ExpressionUUID->"7a7ffb40-bb3a-467c-82f6-5bdda967e2fd",
+Cell[2963, 80, 4859, 99, 368, "Input",ExpressionUUID->"7a7ffb40-bb3a-467c-82f6-5bdda967e2fd",
  InitializationCell->True],
 Cell[CellGroupData[{
-Cell[7847, 183, 3104, 64, 386, "Input",ExpressionUUID->"2599ec67-0bd9-4189-bc1e-ef48476cd404",
+Cell[7847, 183, 3267, 69, 368, "Input",ExpressionUUID->"2599ec67-0bd9-4189-bc1e-ef48476cd404",
  InitializationCell->True],
-Cell[10954, 249, 250, 3, 33, "Output",ExpressionUUID->"555d8ea0-d46d-4f55-810c-242587b928ba"]
+Cell[11117, 254, 250, 3, 32, "Output",ExpressionUUID->"555d8ea0-d46d-4f55-810c-242587b928ba"]
 }, Open  ]]
 }, Closed]],
 Cell[CellGroupData[{
-Cell[11253, 258, 328, 6, 32, "Subsubsection",ExpressionUUID->"11ec06b7-8e35-4461-b606-341c2f9d8357",
+Cell[11416, 263, 328, 6, 32, "Subsubsection",ExpressionUUID->"11ec06b7-8e35-4461-b606-341c2f9d8357",
  InitializationCell->True],
-Cell[11584, 266, 11235, 245, 805, "Input",ExpressionUUID->"af0e2c94-e297-4dc5-adc7-3abc38e84878",
+Cell[11747, 271, 11463, 249, 806, "Input",ExpressionUUID->"af0e2c94-e297-4dc5-adc7-3abc38e84878",
+ CellGroupingRules->{"GroupTogetherGrouping", 10000.},
  InitializationCell->True],
-Cell[22822, 513, 236, 6, 44, "Input",ExpressionUUID->"2342af6d-1019-4135-9f4b-01593806c153",
+Cell[23213, 522, 236, 6, 44, "Input",ExpressionUUID->"2342af6d-1019-4135-9f4b-01593806c153",
  InitializationCell->True]
 }, Closed]]
 }, Open  ]]

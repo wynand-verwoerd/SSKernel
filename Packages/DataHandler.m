@@ -20,6 +20,7 @@ MReader::usage = "Reads input data {modelname, S, bounds, objectvector, FBAvecto
 MatReader::usage="Reads input data from a MatLab .mat file, using COBRA spec as in  https://arxiv.org/pdf/1710.04038.pdf  "
 SBMLReader::usage="Reads input data {modelname, S, bounds, objectvector, FBAvector, 
 	MetaboliteNames, ReactionNames, maxmin} from a SBML file "
+CheckBalance::usage="Inspects Stoichiometry matrix for proper sinks and sources.  "
 Shakeup::usage="Reorder reactions and metabolites randomly.  "
 
 Begin["`Private`"] (* Begin Private Context *) 
@@ -110,6 +111,9 @@ From within Mathematica, having created the individual arrays somehow, produce t
   MetabNames = If[MetabNames == {}, 
   	Print["No suitable list of metabolite names or ID's were detected in the import data!"];
   	ConstantArray["NoName",vars], First@MetabNames];
+  externals = Flatten@Position[
+   MetabNames, _?(StringContainsQ[#, outsuffix ~~ EndOfString] &), Heads -> False];	
+
   vectorat=Complement[vectorat,namesat];  
 (*  At this point, any numeric vectors in flux space are isolated.
 	If any of those satisfies the constraint set, the first of those 
@@ -179,7 +183,10 @@ The data item "osenseSTR" is optional and if absent, the objective is maximized.
   	Length@reactionnames > 0, Flatten@reactionnames, True, ConstantArray["NoName",vars]  ];
   MetabNames = Which[ Length@metIDs > 0, Flatten@metIDs, Length@metnames > 0, Flatten@metnames,
   	 True, ConstantArray["NoName",cons]  ];
-
+  externals = Flatten@Position[
+   metIDs, _?(StringContainsQ[#, outsuffix ~~ EndOfString] &), Heads -> False];	
+  If[externals=={}, externals = Flatten@Position[
+   metnames, _?(StringContainsQ[#, outsuffix ~~ EndOfString] &), Heads -> False]]; 
   bounds = Transpose[Flatten /@ {lowers, uppers}];
   Object = Transpose@Object; 
   vals = First@Transpose@vals;
@@ -187,8 +194,8 @@ The data item "osenseSTR" is optional and if absent, the objective is maximized.
   		Also, provide for the case that ineq comes through as a single string 
   		of characters instead of a list of characters *)
 (* Print[{"before processing, ineq =",ineq}]; *)
-  ineq=If[ineq=="csense", ConstantArray[0,Length[vals]],
-  				If[StringQ[ineq], StringPartition[ineq, 1]]];
+ If[StringQ[ineq] && ineq=="csense", ineq = ConstantArray[0,Length[vals]],
+  				If[StringQ[ineq], ineq = StringPartition[ineq, 1]]];
   ineq = ineq /. {"E" -> 0, "L" -> -1, "G" -> 1};
 (* Print[{"after processing, ineq =",ineq}]; *)
   Svals = Transpose[{vals, ineq}];
@@ -207,143 +214,154 @@ nonzero RHS vector. The SSK calculation currently does not provide for that! "]]
   FBAvector = ConstantArray[0., Length[Object]];
   ]
   
- SetAttributes[SBMLReader, HoldRest];
+SetAttributes[SBMLReader, HoldRest];
 SBMLReader[file_, S_, Svals_, bounds_, Object_, FBAvector_, 
-  	 ReactionNames_, MetabNames_, maxmin_, printresult_ : False] := 
- (* This function reads input data from an XML file containing a 
- 	metabolic model specification according to SBML conventions.
- It provides for files using both the the FBC extension to SBML Level 3
- 	and older files that use LOWER_BOUND, UPPER_BOUND and 
- 	OBJECTIVE_COEFFICIENT parameters in each reaction spec. 
- *)
-  Block[{rawdata, FBCprotocol = True, uri, datatags, usedtags, 
-   missingtags, metabolites, reactions, reactants, reactantsat, products, 
-   productsat, cons, vars, obj, obrules = {}, reactspeclist, reactspec, reaction, 
-   col, xtracts, rules = {}, params, parameterules, lo, up, LowUp, obcof, Srules, 
-   outfile, startime, timeused},
+  ReactionNames_, MetabNames_, maxmin_, printresult_ : False] :=
+  (*This function reads input data from an XML file containing a metabolic model 
+  specification according to SBML conventions.It provides for files using both 
+  the the FBC extension to SBML Level 3 and older files that use LOWER_BOUND,UPPER_BOUND 
+  and OBJECTIVE_COEFFICIENT parameters in each reaction spec.*)
+ Block[{rawdata, FBCprotocol = True, uri, datatags, usedtags, 
+   missingtags, comparts, exter, metabolites, exlist, exempts, exnames, 
+   reactions, reactants, reactantsat, products, productsat, cons, 
+   vars, obj, obrules = {}, reactspeclist, reactspec, reaction, col, 
+   xtracts, rules = {}, params, parameterules, lo, up, LowUp, obcof, 
+   Srules, outfile, startime, timeused}, 
   If[printresult, Print["Data imported from file " <> file]];
   startime = TimeUsed[];
-  progresscounter:=Clock[5]; progressrange=Indeterminate;
-  (* Check if the file uses the Flux Balance Constraints extension of SBML*)
+  progresscounter := Clock[5]; progressrange = Indeterminate;
+  (*Check if the file uses the Flux Balance Constraints extension of SBML*)
   rawdata = Import[file, "XML"];
   uri = Cases[rawdata, 
     XMLElement["sbml", {___, {_, "fbc"} -> ur_, ___}, _] -> ur, Infinity];
   uri = If[uri == {}, FBCprotocol = False; "FBC not used", First@uri];
   If[printresult, Print["Flux Balance Constraints protocol: " <> uri]];
   (*Print[{"Time to import ",TimeUsed[]-startime}];
-  timeused=TimeUsed[]-startime;
-  *)
-  (* Check that all necessary XML elements are present*)
-  datatags = Import[file, {"XML", "Tags"}]; 
+  timeused=TimeUsed[]- startime;*)
+  (*Check that all necessary XML elements are present*)
+  datatags = Import[file, {"XML", "Tags"}];
   usedtags = {"model", "species", "speciesReference", "reaction", 
-    "listOfReactants", "listOfProducts", "listOfParameters", "parameter"};
-  (* Note that the tag fbc:fluxObjective, while used if present, 
-  may be missing in a simple cone model without defined objective *)
-  If[FBCprotocol, 
-   usedtags = Join[usedtags, {"listOfObjectives", "objective"
-   	(*,"fluxObjective"*)}]];
-  missingtags = Complement[usedtags, datatags];
+    "listOfReactants", "listOfProducts", "listOfParameters","parameter", "compartment"};
+  (*Note that the tag fbc:fluxObjective, while used if present,
+  may be missing in a simple cone model without defined objective*)
+  If[FBCprotocol,  
+   usedtags = Join[usedtags, {"listOfObjectives", "objective"(*,"fluxObjective"*)}]];
+   missingtags = Complement[usedtags, datatags];
   If[missingtags != {}, 
    MessageDialog["SBML input failed - the following tags were not found in the \
 file: \n" <> ToString[missingtags]]; Abort[]];
-  
-  (* Extract naming data from the file. *)
+  (*Extract naming data from the file.*)
   ModelName = FirstCase[rawdata, 
-   XMLElement["model", {___, "id" -> id__, ___, ("name" -> nam_) ..., ___}, _]
-    -> {id, nam}, {"NoName"}, Infinity];
+    XMLElement["model", {___,"id" -> id_, ___, ("name" -> nam_) ..., ___}, _] ->
+     {id, nam}, {"NoName"}, Infinity];
   ModelName = Species <> " - " <> StringJoin @@ Riffle[ModelName, " : "];
+  (* Find the id, "exter", of the compartment to be considered extracellular.
+  	Look for the identifying substring "exterior" first in the compartment name, 
+  		but if that fails in the compartment id. *)
+  comparts = Cases[rawdata, 
+    XMLElement["compartment", {OrderlessPatternSequence[
+        "id" -> compid_, ("name" -> compname_) ..., ___]}, _] -> 
+        {compid, compname}, Infinity];
+   exter = FirstCase[comparts, {compid_, _?(StringContainsQ[#, exterior, 
+          IgnoreCase -> True] &)} -> compid, "Failed"];
+  If[exter == "Failed", exter = FirstCase[comparts, 
+  	{compid_?(StringContainsQ[#, exterior, IgnoreCase -> True] &), ___} -> 
+  	  compid, "Failed"]];
+  If[exter == "Failed", MessageDialog[
+    "SBMLReader identified compartments with id's and names\n " <> 
+     ToString[comparts] <> "\n but could not recognize an external compartment."]];
+  
   metabolites = Cases[rawdata, 
-    XMLElement["species", {___, "id" -> ecode_, ___, 
-       "name" -> metab_, ___}, _] -> {ecode, metab}, Infinity];
+    XMLElement["species", {___, "id" -> ecode_, ___, "name" -> metab_, ___}, _] -> 
+    	{ecode, metab}, Infinity];
   cons = Length@metabolites;
   PadRight[metabolites, {cons, 2}, "No name"];
-  (* To return metabolite names instead of ID's,
-   change to [[All,2]] in the next line *)
+  (*To return metabolite names instead of ID's,change to[[All, 2]] in the next line*)
   MetabNames = metabolites[[All, 1]];
-  reactspeclist = 
-   Cases[rawdata, XMLElement["reaction", _, _], Infinity];
+  (* Set up lists of metabolite numbers that are external, and those explicitly exempted from
+  	flux balance by boundaryCondition = true.*)
+  exlist = Cases[rawdata, 
+    XMLElement["species", {OrderlessPatternSequence["compartment" -> cid_, 
+        "boundaryCondition" -> bc_, ___]}, _] -> {cid, bc}, Infinity];
+  externals = Flatten@Position[exlist[[All, 1]], exter];
+  exempts = Position[exlist[[All, 2]], "true"];
+  
+  reactspeclist = Cases[rawdata, XMLElement["reaction", _, _], Infinity];
   vars = Length@reactspeclist;
   If[cons == 0 || vars == 0, 
    MessageDialog["Invalid SBML input - the number of metabolites and reactions \
 found were " <> ToString[{cons, vars}]]; Abort[]];
-  reactions = Map[Join[Cases[#, ("id" -> id_) -> id, 2], 
-      Cases[#, ("name" -> nam_) -> nam, 2]] &, reactspeclist];
+  (* Recovery of the reversible attribute cancelled because many models set it to true
+  	for reversed, but unidirectional, reactions, nstead of bidirectional as per SBML spec. *)
+  reactions = Map[Join[Cases[#, ("id" -> id_) -> id, 2],(*Cases[#,("reversible"-> rev_)->rev,2],*)
+  	Cases[#, ("name" -> nam_) -> nam, 2]] &, reactspeclist];
   reactions = PadRight[reactions, {vars, 2}, "No name"];
-  (* To return reaction names instead of ID's,
-   change to [[All,2]] in the next line *)
-  ReactionNames = reactions[[All, 1]];
+  (*reversibles=reactions[[All,2]];
+  reactions=reactions[[All,{1,3}]];*)
+  (*To return reaction names instead of ID's,change to[[All,2]] in the next line*)
+  ReactionNames = reactions[[All, 2]];
   (*Print[{"Time to read name lists ",TimeUsed[]-startime-timeused}];
-  timeused=TimeUsed[]-startime;
-  *)
-  (* Process the objective section.*)
-  If[FBCprotocol, 
-   obj = Cases[rawdata, XMLElement[{uri, "objective"}, _, _],Infinity]; 
+  timeused=TimeUsed[]-startime;*)
+  
+  (*Process the objective section.*)
+  If[FBCprotocol, obj = Cases[rawdata, XMLElement[{uri, "objective"}, _, _], Infinity];
    maxmin = Cases[obj, 
      XMLElement[{uri, "objective"}, {OrderlessPatternSequence[{uri, "type"} -> 
           typ_, ___]}, _] -> typ, Infinity];
-   maxmin = If[obj == {}, "max", First@maxmin]; 
-   obj = Cases[obj, XMLElement[{uri,  "fluxObjective"},
-   	 {OrderlessPatternSequence[{uri, "reaction"} -> reac_, {uri, "coefficient"} -> 
-          coef_, ___]}, _] -> {reac, coef}, Infinity]; 
+   maxmin = If[obj == {}, "max", First@maxmin];
+   obj = Cases[obj, 
+     XMLElement[{uri,"fluxObjective"}, {OrderlessPatternSequence[{uri, "reaction"} -> 
+     	reac_, {uri, "coefficient"} -> coef_, ___]}, _] -> {reac, coef}, Infinity];
    obrules = Map[Rule @@ # &, 
      Map[Replace[#, # -> {First@Flatten@Position[reactions[[All, 1]], #[[1]]], 
-          StringToDouble[#[[2]]]}] &, obj]],
-    maxmin = "max"];
-    maxmin=Which[StringContainsQ[maxmin, "max", IgnoreCase -> True], -1, 
- 	StringContainsQ[maxmin, "min", IgnoreCase -> True], 1, True, -1];
-  
-  (* For FBC, the flux bounds are in a global list of parameters, 
-  not with each reaction. *)
-  If[FBCprotocol,
-   params = Cases[rawdata, XMLElement["listOfParameters", _, _], Infinity];
+          StringToDouble[#[[2]]]}] &, obj]], maxmin = "max"];
+  maxmin = Which[StringContainsQ[maxmin, "max", IgnoreCase -> True], -1, 
+    StringContainsQ[maxmin, "min", IgnoreCase -> True], 1, True, -1];
+  (*For FBC,the flux bounds are in a global list of parameters, not with each reaction.*)
+  If[FBCprotocol, params = Cases[rawdata, XMLElement["listOfParameters", _, _], Infinity];
    parameterules = Cases[params, 
-     XMLElement[ "parameter", {OrderlessPatternSequence["id" -> id_, 
+     XMLElement["parameter", {OrderlessPatternSequence["id" -> id_, 
          "value" -> val_, ___]}, _] -> (id -> val), Infinity]];
-  
-  (* Process each reaction in turn. 
-  The stoichiometry coefs are converted to rules to give the entries in 
-   the applicable column of the S matrix, taking default value as 1.
-    In the old format, 
-  flux bounds and objective contribution are also read for each reaction.
-   *)
-  progressrange={0,vars}; 
-  xtracts = Reap[Do[progresscounter=col;
-  	 reactspec = reactspeclist[[col]];
+  (*Process each reaction in turn.The stoichiometry coefs are converted to rules to give 
+  the entries in the applicable column of the S matrix,taking default value as 1. 
+  In the old format, flux bounds and objective contribution are also read for each reaction.*)
+  progressrange = {0, vars};
+  xtracts = Reap[Do[progresscounter = col;
+     reactspec = reactspeclist[[col]];
      reactants = Cases[FirstCase[reactspec, 
         XMLElement["listOfReactants", _, _], {}, Infinity], 
-       XMLElement["speciesReference", {OrderlessPatternSequence[
-           "species" -> metab_, ("stoichiometry" ->stoi_) ..., ___]}, _] 
-           	-> {metab, stoi}, Infinity];
-     If[reactants != {},
-      reactants = PadRight[reactants, {Automatic, 2}, 1]; 
+       XMLElement[ "speciesReference", {OrderlessPatternSequence[
+           "species" -> metab_, ("stoichiometry" -> stoi_) ..., ___]}, _] ->
+            {metab, stoi}, Infinity];
+     If[reactants != {}, 
+      reactants = PadRight[reactants, {Automatic, 2}, 1];
       reactants = Map[ReplaceAt[#, val_String :> StringToDouble[val], 2] &, reactants];
       reactantsat = Flatten[Position[metabolites[[All, 1]], #] & /@ reactants[[All, 1]]];
       reactants[[All, 1]] = reactantsat;
       rules = Map[{#[[1]], col} -> -#[[2]] &, reactants]];
      products = Cases[FirstCase[reactspec, 
         XMLElement["listOfProducts", _, _], {}, Infinity], 
-       XMLElement["speciesReference", {OrderlessPatternSequence[
-           "species" -> metab_, ("stoichiometry" -> stoi_) ..., ___]}, _] 
-           -> {metab, stoi}, Infinity];
-     If[products != {}, products = PadRight[products, {Automatic, 2}, 1]; 
+       XMLElement[ "speciesReference", {OrderlessPatternSequence[
+           "species" -> metab_, ("stoichiometry" -> stoi_) ..., ___]}, _] ->
+            {metab, stoi}, Infinity];
+     If[products != {}, 
+      products = PadRight[products, {Automatic, 2}, 1];
       products = Map[ReplaceAt[#, val_String :> ToExpression[val], 2] &, products];
-      productsat = Flatten[Position[metabolites[[All, 1]], #] & /@ products[[All, 1]]];
+      productsat = Flatten[Position[metabolites[[All, 1]], #] & /@products[[All, 1]]];
       products[[All, 1]] = productsat;
       rules = Join[rules, Map[{#[[1]], col} -> #[[2]] &, products]]];
      If[reactants == {} && products == {}, 
       MessageDialog["Failure to parse reaction " <> ToString[reactions[[col, 1]] <> 
-          "; neither reactants nor products could be identified."]]; 
+          "; neither reactants nor products could be identified."]];
       Abort[]];
      Sow[rules, r];
      
-     LowUp = If[FBCprotocol,
-       FirstCase[reactspec, {OrderlessPatternSequence[
-       	{uri, "upperFluxBound"} -> ub_, {uri, "lowerFluxBound"} -> 
-             lb_, ___]} -> {lb, ub}, {"-Infinity", "Infinity"}, 
-         Infinity] /. parameterules
-       ,
-       params =  Cases[reactspec, XMLElement["listOfParameters", _, _], Infinity];
-       params =  params /. {("id" -> id_) -> ("id" -> ToUpperCase[id])}; 
+     LowUp = If[FBCprotocol, 
+       FirstCase[reactspec, {OrderlessPatternSequence[{uri, 
+              "upperFluxBound"} -> ub_, {uri, "lowerFluxBound"} -> 
+             lb_, ___]} -> {lb, ub}, {"-Infinity", "Infinity"}, Infinity] /. parameterules, 
+       params = Cases[reactspec, XMLElement["listOfParameters", _, _], Infinity];
+       params = params /. {("id" -> id_) -> ("id" -> ToUpperCase[id])};
        lo = Cases[params, 
          XMLElement["parameter", {OrderlessPatternSequence[
              "id" -> "LOWER_BOUND" | "LOWERBOUND", 
@@ -357,61 +375,168 @@ found were " <> ToString[{cons, vars}]]; Abort[]];
        Join[lo, up]];
      Sow[LowUp, lu];
      
-     obcof = Cases[params, XMLElement["parameter", {OrderlessPatternSequence[
-           "id" -> "OBJECTIVE_COEFFICIENT", 
-           "value" -> ob_, ___]}, _] -> ob, Infinity];
+     obcof = Cases[params, 
+       XMLElement["parameter", {OrderlessPatternSequence[
+           "id" -> "OBJECTIVE_COEFFICIENT", "value" -> ob_, ___]}, _] -> ob, Infinity];
      obcof = If[obcof == {}, 0, StringToDouble@First@obcof];
-     If[Abs@obcof > 0, Sow[col -> obcof, ob]];
-     
-     , {col, vars}], {r, lu, ob}];
-  (*Print[{"Time to finish reaction loop ",TimeUsed[]-startime-timeused}];
-  timeused=TimeUsed[]-startime;
-  *)
+     If[Abs@obcof > 0, Sow[col -> obcof, ob]];, {col, vars}], {r, lu, ob}];
+  (*Print[{"Time to finish reaction loop ",TimeUsed[]-startime- timeused}];
+  timeused=TimeUsed[]-startime;*)
   xtracts = xtracts[[2]];
   Srules = Flatten@xtracts[[1]];
   S = SparseArray[Srules, {cons, vars}];
-  (* Eliminate any rows that correspond to a listed metabolite that 
-	does not participate in any reaction ]*)
-  S = Cases[Normal@S, Except[{0 ..}]];
+  (*Eliminate any rows that correspond to a listed metabolite that \
+does not participate in any reaction, or that are exempt from flux balance *)
+  exempts = Join[Position[Normal@S, {(0 | 0.) ..}, 1], exempts];
+  S = Delete[S, exempts];
+  exnames = MetabNames[[externals]];
+  MetabNames = Delete[MetabNames, exempts];
+  (* relocate externals according to the new metabolite list, i.e. row numbers of S *)
+  externals = Flatten[Position[MetabNames, #] & /@ exnames];
   cons = Length@S;
   Svals = ConstantArray[{0, 0}, cons];
   bounds = Map[StringToDouble[#] &, Flatten[xtracts[[2]], 1], {2}];
   obrules = If[xtracts[[3]] == {}, obrules, Flatten@xtracts[[3]]];
   Object = ReplacePart[ConstantArray[0., vars], obrules];
-  
-  FBAvector =  ConstantArray[0., vars];
-  
+  FBAvector = ConstantArray[0., vars];
   If[printresult, 
-   Print["Dimensions of imported stoichiometry, values, bounds, \
-objective and FBA flux arrays: " <>          
-     ToString[Dimensions /@ {S, Svals, bounds, Object, FBAvector}]]]; 
-  
+   Print["Dimensions of imported stoichiometry, values, bounds, objective and FBA flux arrays: " <>
+   	 ToString[Dimensions /@ {S, Svals, bounds, Object, FBAvector}]]];
   outfile = StringReplace[file, "xml" | "sbml" -> "m"];
-  (*
-  Export[outfile, {ModelName, S, Svals, bounds, Object, FBAvector,  
-    ReactionNames, MetabNames,
-      maxmin}, "List"];
-  *)
+  (*Export[outfile,{ModelName,S,Svals,bounds,Object,FBAvector,ReactionNames,MetabNames,maxmin},"List"];*)
   (*Print[{"Time to export ",TimeUsed[]-startime-timeused}];
-  timeused=TimeUsed[]-startime;
-  *)
+  timeused=TimeUsed[]-startime;*)
   ]
+  
+CheckBalance[Stoichio_, Bounds_, Externs_, Printresult_ : False] :=
+ (* Function to set up a list of external metabolites which may be \
+exempted from the flux balance condition in order to compensate for \
+the omission or inefffectiveness of source or sink (i.e. exchange) \
+reactions in the model specification. *)
+ Module[{stoichio, rows, cols, blockers, exblockers, inblockers, singletons, dirfix, SfSigns, zerows,
+   exchangers, blocked, blockedexchangers, singleblockers, singletargets, kickout, notexempt,
+   exemptions, exchangedmetabs, exnonexch, intexch},
+  (*startime=TimeUsed[];*)
+  stoichio = Normal[Stoichio];
+  {rows, cols} = Dimensions@stoichio;
+  (* Assign the direction value Infinity to reversible reactions. 
+  Then when multiplying this by  the stoichio coef,  only 3 values will result: = +/-Infinity or Indeterminate. 
+  Indeterminate is the result when the coef is 0, so replace its occurrences by 0.*)
+  dirfix = Which[#[[1]] < #[[2]] <= 0 , -1, #[[2]] > #[[1]] >= 0., 1,
+  				 #[[1]] == #[[2]] == 0., 0, True, Infinity] & /@ Bounds;
+  (* SfSigns is a digitized version of S with values -1,  0 or 1 to indicate if a metabolite is 
+  taken up, not inlvolved, or produced by each reaction, and +-Infinity if either.  *)
+  (*Print["Time point = "<>ToString[TimeUsed[]-startime]];*)
+  SfSigns = Map[Quiet[(Sign[#]*dirfix) /. Indeterminate -> 0] &, stoichio];
+  (* NOTE: 
+  The previous line takes up about 60% of the processing time for this function.
+  	This may be because of the 0*Infinity = Indeterminate generating error messages etc.
+  	 The following line avoids this by explcitly testing for a zero before multiplying
+  		but it turns out to be only slightly faster. 
+  Stick with the simpler version. *)
+  (*SfSigns=Map[MapThread[If[#1==0.,0,#1*#2]&,{Sign@#,dirfix}]&, stoichio];*)
+  (*Print["Time point = "<>ToString[TimeUsed[]-startime]];*)
+  
+  (* Determine blocking rows, i.e. metabolites *)
+  blockers = DeleteDuplicates@Flatten@Last@
+      Reap[Do[If[! MemberQ[SfSigns[[row]], Infinity | -Infinity],
+         If[MatchQ[Sign@SfSigns[[row]], {(0 | -1) ..}], Sow[row]];
+         If[MatchQ[Sign@SfSigns[[row]], {(0 | 1) ..}], Sow[row]];
+         ],
+        {row, rows}]];
+  zerows = Flatten@Position[SfSigns, {0 ..}];
+  singletons = Flatten@Position[Map[Count[#, Except[0]] &, SfSigns], 1];
+  (* SfSigns that are all-zero because of 0,0 bounds are picked up. Eliminate them *)
+  blockers = Union[Complement[blockers, zerows], singletons];
+  exblockers = Intersection[blockers, Externs];
+  inblockers = Complement[blockers, Externs];
+  (*Print["blockers ",blockers ];*)
+  
+  (* Find the blocked reactions, the exchange reactions, 
+  and then isolate blocked exchanges and allocate as external/internal *)
+  blocked = Flatten@Position[Total@Abs@SfSigns[[blockers]], Except[0], 1, Heads -> False]; 
+  exchangers = Flatten@Last@Reap[Do[(*Print[Sign@SfSigns[[row]]];*)
+       If[MatchQ[Sign@stoichio[[All, col]], {(0 | -1) ..}], Sow[col]];
+       If[MatchQ[Sign@stoichio[[All, col]], {(0 | 1) ..}],  Sow[col]];
+       , {col, cols}]];
+  blockedexchangers = Intersection[exchangers, blocked];
+  (*Print["exchangers",exchangers];*)
+  
+  (*Look at the external blockers that are singletons, and find which reactions they target.
+  Omit any that target an exchange reaction from the ones to be exempted. *)
+  singleblockers = Intersection[exblockers, singletons]; 
+  singletargets =  Flatten@Map[Position[#, Except[0], 1, Heads -> False] &, SfSigns[[singleblockers]]]; 
+  kickout = Map[MemberQ[blockedexchangers, #] &, singletargets]; 
+  notexempt = Pick[singleblockers, kickout];
+  exemptions = Complement[exblockers, notexempt];
+  
+  (* Check which metabolites have explicit sinks/sources *)
+  exchangedmetabs = DeleteDuplicates@Flatten@
+  	Map[Position[stoichio[[All, #]], Except[0 | 0.], 1, Heads -> False] &, exchangers]; 
+  exnonexch = Complement[Externs, exchangedmetabs];
+  intexch = Complement[exchangedmetabs, Externs];
+  
+  If[Length@exnonexch > 0.5*Length@Externs, 
+   Print[Style["WARNING!\n The model appears incomplete; it provides no \
+exchange reactions for " <> ToString[Length@exnonexch] <> " out of " <>
+       ToString[Length@Externs] <> 
+      " external metabolites. \nThis may restrict the solution space \
+or even cause the model to be infeasible. \nConsider exempting \
+non-buffered externals from flux balance.", Red]]];
+  If[Printresult,
+   Print[Style["Sink and source analysis of stoichiometry matrix.", "Subsubsection", 16]];
+   Print["This model has " <> ToString[Length@Externs] <> " metabolites identified as external, and " <> 
+     ToString[Length@exchangers] <> " exchange reactions."];
+   If[Length@blockedexchangers > 0, 
+    Print[ToString[Length@blockedexchangers] <> " exchange reactions are blocked, because they\n"<>
+    	"involve a metabolite for which the flows cannot be balanced. "];
+    If[Length@notexempt > 0,
+     Print["Such blocking is appropriate for the " <> ToString[Length@notexempt] <> 
+       " exchange reactions that target\n the following metabolites, \
+since they are not involved in the network: \n" <> ToString[MetaboliteNames[[notexempt]]]]];
+	];
+   If[Length@exemptions == 0, 
+   	Print["All external metabolites have either explicit sink/source reactions, or bidirectional\n"<>
+   		" exchange with the enivironment. Ticking the exemptions box in Stage 2 will have no effect."],
+    Print["A total of " <> ToString[Length@exemptions] <> 
+      " external metabolites are left without a viable source or sink, namely \n" <>
+       ToString[MetaboliteNames[[exemptions]]]];
+    Print["Ticking the non-buffered exemption option in Stage 2 provides an alternative way to\n"<>
+    	"allow free, unbounded exchange of these external metabolites with the environment. "]];
+   If[Length@intexch > 0, 
+    Print["Environmental exchange is provided for the following internal metabolites: ", 
+      MetaboliteNames[[Complement[intexch, inblockers]]]];
+    ];
+   If[Length@inblockers > 0,
+    Print[ "There are also " <> ToString[Length@inblockers] <> " non-buffered internal metabolites, " <> 
+      ToString[Length[Intersection[inblockers, singletons]]] <> 
+      " of which \neach only participates in a single reaction.\n"<>
+      "All reactions that involve them will not be exempted and remain blocked \n"<>
+      "in order to preserve the metabolic steady state."]]; 
+   Print[Style["_____________________________________________________________", 
+     "Subsubsection", 16]];
+   ];
+  exemptions]
 
-Shakeup[stoichiometry_] := Module[{rows, cols, roworder, colorder},
-  {rows, cols} = Dimensions[stoichiometry];
+Shakeup[] := Module[{rows, cols, roworder, colorder},
+  {rows, cols} = Dimensions[S];
   (* Shuffle rows and columns of the stoichiometry and related matrices 
   	into a randomly different order. *)
   roworder = RandomSample[Range[rows]];
   colorder = RandomSample[Range[cols]];
   ReactionNames = ReactionNames[[colorder]];
   MetaboliteNames = MetaboliteNames[[roworder]];
+  (* The externals and exemptions lists are row numbers in original ordering;
+  	 adjust them to the new order  *)
+  externals = Flatten[Position[roworder, #] & /@ externals];
+  exemptions = Flatten[Position[roworder, #] & /@ exemptions];
   S = S[[roworder, colorder]];
   Svals = Svals[[roworder]];
   bounds = bounds[[colorder]];
   objectselector = objectselector[[colorder]];
   (* Reinitialize all data *)
-  FBAdone = False; rawfeasibles = {}; boundedflux = {}; openflux = {};
-   augment = {{}}; lowers = {}; uppers = {}; feasiblepoints = {}; 
+  rawfeasibles = {}; boundedflux = {}; openflux = {};
+  augment = {{}}; lowers = {}; uppers = {}; feasiblepoints = {}; 
   ]
 
 End[] (* End Private Context *)

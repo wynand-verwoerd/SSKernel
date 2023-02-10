@@ -4,7 +4,7 @@
 workdir=If[$InputFileName=="",NotebookDirectory[],DirectoryName@$InputFileName];
 Print["Working directory is ",workdir]
 
-SetDirectory[workdir<>"\\Packages"];
+SetDirectory[FileNameJoin[{workdir,"Packages"}]];
 Get["Configuration`"]
 Get["ModelProcessing`"]
 Get["Centering`"]
@@ -15,7 +15,7 @@ Get["FacetTesting`"]
 Get["FBFsearch`"]
 Get["Capping`"]
 ResetDirectory[];
-PackagesDirectory=workdir<>"\\Packages";
+PackagesDirectory=FileNameJoin[{workdir,"Packages"}];
 
 datafile=First@FileNames["*.mat"|"*.m", workdir<>"TEST"];
 commandline=True; loadreset=False;  verbose=False; Species="";
