@@ -113,7 +113,7 @@ be reduced to facilitate a subsequent tree search in the reduced space.
   (* STAGE 3: 
   EXPRESS EVERYTHING BACK IN TERMS OF THE FLUX SPACE VARIABLES *)
   solutionspace =  {{constraints,values},{centershift,ProgenBasis}};
-  DiscardRays =  Chop[DiscardRays.SSBasis, tol]
+  DiscardRays =  Chop[DiscardRays.RSSBasis, tol]
   ]
 
 SetAttributes[TangentCapper, HoldFirst];
@@ -575,7 +575,7 @@ Print["Check apex is interior after flattened mainchords: "<>
    
     progressrange = {0, Length@endpoints}; progresscounter=1;
     residues = Reap[TimeConstrained[
-       Do[Sow@Deconstructor[endpoints[[i]], SolutionSpace, solutionspace];
+       Do[Sow@Deconstructor[endpoints[[i]], ReducedSS, solutionspace];
         progresscounter++; reached = i, {i, Length@endpoints}], 
        timeconstraint]];
     residues = If[reached == 0, 

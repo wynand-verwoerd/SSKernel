@@ -88,7 +88,7 @@ chordpic={}; cenpic={}; flatplot={};
 
 (* GLOBAL VARIABLES FOR SSKernel CALCULATION  *)
 
-KernelSpaceVersion = " Version 1.2 Jan 2023 ";
+KernelSpaceVersion = " Version 1.3 Jan 2024 ";
 DataDirectory=""; (*Base directory path, datafile specified relative to this in command line  version *)
 (* DataDirectory="C:/Users/John Smith/Documents/Data/"; *)       (*EXAMPLE 1: Forward slashes *)
 (* DataDirectory="C:\\Users\\John Smith\\Documents\\Data\\"; *)  (*EXAMPLE 2: Note every \ needs to be doubled*)
@@ -137,6 +137,7 @@ Diameters={}; (* SSK diameters through the refined centre, along chord direction
 ExportResults={}; (* Detailed results, to be exported to *.DIF file *)
 
 (* Interim results, stored to facilitate repetition of earlier stages *)
+
 (* Raw input values, To restore model definition after exemptions or reshuffle *)
 {Sraw,rawSvals,rawbounds,rawobject,rawFBAvec,rawreacts,rawmets,rawexternals,rawexempts}; 
 rawfeasibles; boundedflux; openflux; FBAdone=False;
@@ -157,10 +158,10 @@ i.e., have HoldFirst , HoldAll etc. attributes, as that will freeze them to fixe
 
 (*Reduced space (RSS) implementing stoichiometry and objective constraints, 
 after removing fixed fluxes, prismatic rays and linealities *)
-SolutionSpace={{},{}}; 
-SScons:=SolutionSpace[[1,1]];SSvals:=SolutionSpace[[1,2]];
-SSTransform:=SolutionSpace[[2]]; (* Affine transform from FS to SS *)
-SSOrigin:=SolutionSpace[[2,1]];SSBasis:=SolutionSpace[[2,2]];
+ReducedSS={{},{}}; 
+RSScons:=ReducedSS[[1,1]];RSSvals:=ReducedSS[[1,2]];
+RSSTransform:=ReducedSS[[2]]; (* Affine transform from FS to SS *)
+RSSOrigin:=ReducedSS[[2,1]];RSSBasis:=ReducedSS[[2,2]];
 
 (* Bounded Kernel solution space after coincidence and tangent capping, relative to RSS  *)
 KernelSpace={{},{}};
@@ -173,6 +174,7 @@ KernelOrigin:=KernelSpace[[2,1]];KernelBasis:=KernelSpace[[2,2]];
 
  
 Begin["`Private`"] (* Begin Private Context *) 
+
 
 End[] (* End Private Context *)
 

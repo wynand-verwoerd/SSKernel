@@ -240,7 +240,7 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
   (* Given an FBA model, this function finds its reduced solution space 
   after applying mass balance, fixed objectives, non-  trivial range constraints
    and removing prismatic rays. 
-  The result is directly stored in the global variable SolutionSpace. *)
+  The result is directly stored in the global variable ReducedSS. *)
   bounds=Bounds; (* leave the bounds in the raw model untouched *)
   {cons, vars} = Dimensions[Stoichiometry];
   cons = cons + objectcount + 2*Length@bounds;
@@ -398,7 +398,7 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
   	(* Print[{"ObSpaceTransform",ObSpaceTransform}]; *)  
   If[obvars == 0,
    ObSpaceTransform[[2]] = {0.,{{0.}}}; 
-   SolutionSpace = {{{{1.}}, {0.}}, ObSpaceTransform};
+   ReducedSS = {{{{1.}}, {0.}}, ObSpaceTransform};
    AppendTo[Processreport,{" No remaining degrees of freedom so RSS and SSK are both a single point. "}];
 
     ,
@@ -411,26 +411,26 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
    lowercons = -UnitVector[vars, #] & /@ downs;
    {OScons, OSvals} = DowncastConstraints[Join[lowercons, uppercons], Join[-lowers, uppers], ObSpaceTransform];
    {OScons, OSvals, keepers} = DropColinears[OScons, OSvals];
-   SolutionSpace = {{OScons, OSvals}, ObSpaceTransform};
+   ReducedSS = {{OScons, OSvals}, ObSpaceTransform};
    {cons, vars} = Dimensions[OScons];
    AppendTo[Reductiontable, {"Apply nontrivial range constraints ", cons, vars, 0}];
-   (* Print[{"SS dimensions before Prismdrop",Dimensions/@Flatten[SolutionSpace,1]}]; *)
+   (* Print[{"SS dimensions before Prismdrop",Dimensions/@Flatten[ReducedSS,1]}]; *)
 
    (* Project out prismatic ray dimensions and linealities *)
-   prismrays = PrismDrop[SolutionSpace,PrintResult];
-   {cons, vars} = Dimensions[SScons];
-	 (*Print[{"SS dimensions after Prismdrop",Dimensions/@Flatten[SolutionSpace,1]}];  *)
-   If[Norm[SSBasis]>0.,
+   prismrays = PrismDrop[ReducedSS,PrintResult];
+   {cons, vars} = Dimensions[RSScons];
+	 (*Print[{"SS dimensions after Prismdrop",Dimensions/@Flatten[ReducedSS,1]}];  *)
+   If[Norm[RSSBasis]>0.,
    (*	Monitor[
-   	{newcons, newvals, redundancies} = RedundancyTrimmer[SScons, SSvals, {}, PrintResult];
+   	{newcons, newvals, redundancies} = RedundancyTrimmer[RSScons, RSSvals, {}, PrintResult];
    	      , Labeled[ProgressIndicator[progresscounter/cons], " Eliminating redundant constraints "]]; *)
    progressrange={0,cons};progresslabel=" Eliminating redundant RSS constraints ";
    Print[Style[progresslabel, Blue, TextAlignment -> Center]];	 
-   {newcons, newvals, redundancies} = RedundancyTrimmer[SScons, SSvals, {}, PrintResult];
+   {newcons, newvals, redundancies} = RedundancyTrimmer[RSScons, RSSvals, {}, PrintResult];
    progresslabel=" RSS redundant constraint elimination completed."; 
    progresscounter=0;
 
-   SolutionSpace[[1]] = {newcons, newvals};
+   ReducedSS[[1]] = {newcons, newvals};
    {cons, vars} =  Dimensions[newcons];
    
    (* If all constraint values are 0, all constraint hyperplanes intersect at the current 
@@ -647,7 +647,7 @@ KernelFinder[PrintResult_: False] :=
   
   (*  STAGE 1: DIAGNOSE THE NATURE OF THE RSS AND DEAL WITH SIMPLER CASES FIRST*)
   
-  If[Norm[SSBasis] ==  0.,                 (* CASE 1 - a single point *)
+  If[Norm[RSSBasis] ==  0.,                 (* CASE 1 - a single point *)
    SStype = "Point";
    (*Print["No degrees of freedom remain after removing prismatic rays from the SS.
       So the SSK is just the single point at the SS origin."];*)
@@ -655,15 +655,15 @@ KernelFinder[PrintResult_: False] :=
    Return[]
    ];
   
-  {raymat, raydim} = CompleteRayBasis[SScons, PrintResult];
+  {raymat, raydim} = CompleteRayBasis[RSScons, PrintResult];
   (*Print["Ray dimensions after CompleteRayBais "<>ToString[
   Dimensions@raymat]];*)
   RayDim = RayDim + raydim;
-  {cons, vars} = Dimensions[SScons];
-  KernelSpace = SolutionSpace;
+  {cons, vars} = Dimensions[RSScons];
+  KernelSpace = ReducedSS;
   (*KernelSpace initially the same as RSS, but respecify it relative to RSS,rather than FS,
   to reduce dimensions for capping and centering procedures*)
-  ssdim = Length[SSBasis];
+  ssdim = Length[RSSBasis];
   KernelSpace[[2]] = {ConstantArray[0., ssdim], IdentityMatrix[ssdim]};
   
   If[raydim == 0,                              (*  CASE 2 - a bounded polytope *)
@@ -768,7 +768,7 @@ a plausible value, then Skip FBF to apply default tangent capping.", \
    ];
   
   If[SStype == "SimpleCone" || SStype == "FacetCone",
-     conerays = TangentCapper[KernelSpace, raymat, SSBasis, PrintResult];
+     conerays = TangentCapper[KernelSpace, raymat, RSSBasis, PrintResult];
    (*Print["Ray dimensions after TangentCapper "<>ToString[Dimensions@raymat]];*),
   	conerays={};
    ];
@@ -901,32 +901,39 @@ KernelDisplay[exportdata_, Printresult_:False] :=
   (*
   Print["Diagnostic: Peripoints, dimensions of SS, SSK and NonfixTransform"];
   Print[Norm/@PeriPoints];
-  Print[Dimensions/@Flatten[SolutionSpace,1]];
+  Print[Dimensions/@Flatten[ReducedSS,1]];
   Print[Dimensions/@Flatten[KernelSpace,1]];
   Print[Dimensions/@NonfixTransform];
   *)
   
   (*TRANSFER SPECS BACK TO FULL FLUX SPACE IN ORDER TO UPDATE FIXED VALUES*)
+  (* There are 4 spaces used internally: Full Flux Space (FFS), variable space (VS) 
+  	 i.e. fixed fluxes eliminated, Reduced Solution Space (RSS) and the Solution Space
+  	 kernel (SSK). Each of these is a subspace of the previous in this sequence.
+  	 
+  	 Internally, RSS and SSK specs are relative to VS because it cuts the dimension requirement.
+  	 For export, however, only SSK and perhaps RSS are relevant and shoud be given relative to FFS.
+  	 Note that to change the reference frame, it is just the Transform part of the space spec that
+  	 needs to be changed, the constraints and values refer to their local coordinate origin (by 
+  	 design!) and dimension count and are NOT changed.
+  	
+  	 NonfixTransform gives the transformation from FFS to VS.
+  *)
   exfeasibles = Chop[UpliftPoint[feasiblepoints, NonfixTransform], 10.^-6];
   exrays =DeleteDuplicates[Join[prismrays, coincrays, conerays], (1 - Abs[#1.#2] < 10.^-6) &];
   If[Length@exrays>0,
   	exrays = Chop[exrays.NonfixTransform[[2]], 10.^-6];
     BaseDim = MatrixRank[exrays, Tolerance -> LPtol],
   	BaseDim = 0];
-  exSolutionSpace = SolutionSpace;  exKernelSpace = KernelSpace;
-  exSSTransform = CombineTransform[NonfixTransform, SSTransform];
- 
+  exSolutionSpace = ReducedSS;  exKernelSpace = KernelSpace;
+  exSSTransform = CombineTransform[NonfixTransform, RSSTransform];
+  exSolutionSpace[[2]] = Chop[exSSTransform, 10^-6];
+
   If[SStype == "Point",
-   exSolutionSpace[[2]] = Chop[exSSTransform, 10^-6];
    exKernelSpace = exSolutionSpace;
    exKernelTransform = exSSTransform;
    exPeriPoints = {exKernelTransform[[1]]};
    ,
-   exSolutionSpace[[2, 1]] = 
-    Chop[UpliftPoint[KernelOrigin, SSTransform], 10^-6];
-   exSolutionSpace[[1, 2]] = SSvals - SScons.KernelOrigin;
-   exKernelSpace[[2, 1]] = ConstantArray[0., Length[KernelOrigin]];
-   exSolutionSpace[[2]] = Chop[exSSTransform, 10^-6];
    exKernelTransform = CombineTransform[exSSTransform, KernelTransform];
    exKernelSpace[[2]] = Chop[exKernelTransform, 10^-6];
    exPeriPoints = 
@@ -972,7 +979,7 @@ Repeating and/or reducing flattening, or using more LP chords, may avoid this.\n
 
     exportdata = {exKernelSpace, exPeriPoints, exfixvals, exthindirs, exrays, 
     	{InscribedSphere[[1]], exISphereCentre}, 
-    	fixdirnames, ReactionNames, exSolutionSpace };
+    	fixdirnames,{MetaboliteNames, ReactionNames}, exSolutionSpace };
   
    progresslabel =  " Validation, preparing export data and display completed. ";
    Print[Style[progresslabel, Blue, TextAlignment -> Center]];
@@ -995,18 +1002,18 @@ Repeating and/or reducing flattening, or using more LP chords, may avoid this.\n
     (*,meanflux, meanrecon, nonzerofluxes*) },
 
    (* Do the deconstruction in low-dimensional Kernel space *)
-   RSSfeasible = DowncastPoint[feasible, SSTransform];
-   OrthoRay = Chop[feasible - UpliftPoint[RSSfeasible, SSTransform]];
+   RSSfeasible = DowncastPoint[feasible, RSSTransform];
+   OrthoRay = Chop[feasible - UpliftPoint[RSSfeasible, RSSTransform]];
    
-   result= Deconstructor[RSSfeasible, SolutionSpace, Kernelspace, True];
+   result= Deconstructor[RSSfeasible, ReducedSS, Kernelspace, True];
   (* Print[{"In KernelDiscrepancy, on return from Deconstructor, the result is: ",result}]; *)
    If[Length[result]==3,{Kernelpart, raypart, shortfall} = result,Return[{0.,"Failed","Failed"}]];
    (* Transfer the Kernel flux up to the RSS; 
    note that the ray part is not a vector fixed to the origin, 
    so is just recast as a vector in the higher dimension*) 
-   Kernelpart = UpliftPoint[Kernelpart, SSTransform];
-   raypart = raypart.SSBasis;
-   (*shortfall= shortfall.SSBasis;*)
+   Kernelpart = UpliftPoint[Kernelpart, RSSTransform];
+   raypart = raypart.RSSBasis;
+   (*shortfall= shortfall.RSSBasis;*)
    reconstitute = Kernelpart + raypart + OrthoRay;
    progresscounter++;
    If[Printresult,
@@ -1118,8 +1125,8 @@ Repeating and/or reducing flattening, or using more LP chords, may avoid this.\n
     "\n(* Ray vectors in flux space *)", 
     "\n(* Maximal inscribed sphere radius and centre *)", 
     "\n(* Reversible reactions becoming fixed in direction *)",
-    "\n(* Names of reactions that form the flux space basis vectors *)"
-  (*  , "\n(* Reduced Solution Space Data Structure *)" *)
+    "\n(* Names of metabolites, and reactions that form the flux space basis vectors *)",
+    "\n(* Reduced Solution Space Data Structure *)" 
     };
   exportfile = FileBaseName[datafile] <> " SSKernel.dif";
   exportfile = FileNameJoin[{DirectoryName[datafile], exportfile}];
@@ -1274,6 +1281,7 @@ required calculations. *)
    (*Restore unflattened SSK*)
    KernelSpace = SSKinRSS;     InscribedSphere = SSKinsphere;
    {Reductiontable, Kerneltable, Processreport} = KernelReports;
+   SelectionMove[repwindow, After, Notebook];
    NotebookWrite[repwindow, Cell["Flattening Decision Plot ", "Subsubsection"]];
    Print@Grid[{{"Stage 4"}}, ItemSize -> 40, Spacings -> {Automatic, 0}, 
    	Frame -> True, Background -> Hue[0.48, 1, 1, .5]];
@@ -1300,6 +1308,7 @@ required calculations. *)
   If[mainstage == "Display" || (automate && skipstages < 5),
   	panelback[[5]] = LightGreen;
    {Reductiontable, Kerneltable, Processreport} = ShapeReports;
+   SelectionMove[repwindow, After, Notebook];
    NotebookWrite[repwindow, 
     Cell["Chords, diameters, centrality and aspect ratios.", "Subsubsection"]];
    Print@Grid[{{"Stage 5"}}, ItemSize -> 40, Spacings -> {Automatic, 0}, 
@@ -1315,9 +1324,9 @@ required calculations. *)
       Quiet@ToString[NumberForm[Loadtime + RSStime + Kerneltime + Shapetime + Chordtime, 3]] <> 
       " seconds."}; 
    NotebookWrite[repwindow, ToBoxes[chordpic]];
-   SelectionMove[repwindow, After, Cell, 1];
-   NotebookWrite[repwindow, ToBoxes[cenpic]];
-   SelectionMove[repwindow, After, CellGroup, 1];
+   SelectionMove[repwindow, After,Notebook]; 
+   NotebookWrite[repwindow, ToBoxes[cenpic],After];
+   SelectionMove[repwindow, After,Notebook]; 
    If[success, 
    	panelback[[5]] = LightCyan;
    	available = {True, True, True, True, True, True}, 
@@ -1326,10 +1335,8 @@ required calculations. *)
   
   If[mainstage == "Export" (* || automate *) ,
   	panelback[[5]] = LightGreen;
-  	(* Only export first 8 components of exportresults; component 9
-  	  is the RSS structure, not really externally useful. *)
    CheckAbort[success=Check[
-   	SaveResults[If[Length@ExportResults==0,{},ExportResults[[1;;8]]], datafile],
+   	SaveResults[If[Length@ExportResults==0,{},ExportResults], datafile],
    	 False],
       success = False];
    If[success,
@@ -1347,20 +1354,22 @@ UserInterface[controlwindow_, reportwindow_] :=
         "Open", {"Metabolic models" -> {"*.mat", "*.sbml", "*.xml", 
            "*.m"}, "All files" -> {"*"}}], 
        InputField[Dynamic[datafile], String, 
-        FieldHint -> "Choose the input file.", FieldSize -> 46], 
-       SpanFromLeft, SpanFromLeft}, {"Organism: ", 
+        FieldHint -> "Choose the input file.", FieldSize -> 38],
+        SpanFromLeft, SpanFromLeft,
+        "Option reset", Checkbox[Dynamic[loadreset]]},  
+        {"Organism: ", 
        InputField[Dynamic[Species], String, 
         FieldHint -> "Default: parent directory name.", 
-        FieldSize -> 12], Optiontable[[1, 1]], 
+        FieldSize -> 15], Optiontable[[1, 1]], 
        InputField[Dynamic[timeconstraint], Number, FieldSize -> 3], 
-       "Option reset", Checkbox[Dynamic[loadreset]], 
+       
        Button[Style[" Load ", 10, Bold], 
         StageManager["Loading", reportwindow], ImageSize -> {80, 16}, 
         Background -> Lighter[Green, 0.95], 
-        Enabled -> Dynamic@available[[1]], Method -> "Queued"]}}, 
+        Enabled -> Dynamic@available[[1]], Method -> "Queued"],SpanFromLeft}}, 
      Spacings -> {1.7, 0}], 
     Style["Stage 1:   Load and check FBA model", "Subsubtitle", 
-     FontSize -> 12], ImageSize -> {Automatic, 50}, 
+     FontSize -> 12], ImageSize -> {Automatic, 56}, 
     Background -> Dynamic[panelback[[1]]]];
   stage2 = 
    Panel[Grid[{{(*Optiontable[[15,1]],*)"Flux bounds larger", 

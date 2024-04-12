@@ -110,7 +110,7 @@ From within Mathematica, having created the individual arrays somehow, produce t
   MetabNames = Cases[import[[namesat]], _?(Length[#]==cons&)];
   MetabNames = If[MetabNames == {}, 
   	Print["No suitable list of metabolite names or ID's were detected in the import data!"];
-  	ConstantArray["NoName",vars], First@MetabNames];
+  	ConstantArray["NoName",cons], First@MetabNames];
   externals = Flatten@Position[
    MetabNames, _?(StringContainsQ[#, outsuffix ~~ EndOfString] &), Heads -> False];	
 
@@ -152,7 +152,10 @@ The data item "osenseSTR" is optional and if absent, the objective is maximized.
   ruleform = First[Import[file, "Labels"] /. Import[file, "LabeledData"]]; 
 *)
   (* But since 12.2, it imports as a set of associations. Convert to rules by Normal. *)
-  ruleform = Normal[Import[file, "LabeledData"]][[1, 2, 1, 1, All]];
+  ruleform = Normal[Import[file, "LabeledData"]];
+  If[MatchQ[ruleform[[1]], _ -> $Failed], 
+  	Print["Reading aborted because data file is invalid. "]; Abort[], 
+  	ruleform = ruleform[[1, 2, 1, 1, All]]];
   labels = ruleform[[All, 1]];
   If[printresult,Print["The labeled data items in the input file are: "<>ToString[labels]]];
   missing = Complement[{"S", "lb", "ub", "b", "c"}, labels];
