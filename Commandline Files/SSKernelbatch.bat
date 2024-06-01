@@ -1,10 +1,11 @@
 @ECHO off
 ECHO "%~1"
 REM Edit the commandline below to insert further comma separated parameter assignments, 
-REM in addition to "verbose", inside the curly brackets.
+REM inside the curly brackets.
 
  pushd %~dp0
- START "Commandline Version of SSKernel" SSKernelscript.wls "%~1" "{verbose=False}"
+ START "Commandline Version of SSKernel" SSKernelscript.wls "%~1" ^
+ "{commandline=True, loadreset=False,  verbose=False, Species=\"Unknown\";}"
  PAUSE
  popd
 

@@ -1,7 +1,9 @@
+(* ::Package:: *)
+
 (* Wolfram Language Package *)
 
 (* COPYRIGHT
-					© Copyright 2022 Wynand Verwoerd
+					\[Copyright] Copyright 2022 Wynand Verwoerd
 
 This file is part of SSKernel.
 
@@ -36,8 +38,9 @@ LoadModel[DataFile_, printresult_]:=
 Module[{cons,vars, bigmodel = 1500 },
 progresslabel="Loading data from input file.";
 Print[Style[progresslabel, Blue, TextAlignment -> Center]];
-Switch[FileExtension[DataFile],
-  "m", MReader[DataFile, S, Svals, bounds, objectselector, 
+(* Print["File "<>DataFile<>" with extension "<>FileExtension[DataFile]]; *)
+Switch[ToLowerCase@FileExtension[DataFile],
+  "m"|"wl", MReader[DataFile, S, Svals, bounds, objectselector, 
    FBAvector, ReactionNames, MetaboliteNames, maxmin, printresult],
   "mat", MatReader[DataFile, S, Svals, bounds, objectselector, 
     FBAvector, ReactionNames, MetaboliteNames, maxmin, printresult],
@@ -54,7 +57,7 @@ Export[exportfile, {ModelName, S, bounds, objectselector, FBAvector, ReactionNam
 
 exemptions = CheckBalance[S, bounds, externals, True];
 
- If[printresult, Print[Show[MatrixPlot[{S.objectselector},
+ If[printresult, Print[Show[MatrixPlot[{S . objectselector},
 		PlotLabel->"Metabolites contributing to the objective"],ImageSize->Full]]];
  artificial = ChooseArt[bounds, printresult];
  progresscounter=0.5;		
@@ -71,7 +74,7 @@ exemptions = CheckBalance[S, bounds, externals, True];
 ];
 
 (* Discard imported solution if invalid or in conflict with explicit solution *)
-  If[Chop@Norm[FBAvector] == 0. || Chop@Norm[S.FBAvector] != 0. ||
+  If[Chop@Norm[FBAvector] == 0. || Chop@Norm[S . FBAvector] != 0. ||
    Position[MapThread[#2[[1]] <= #1 <= #2[[2]] &, {Chop[FBAvector], bounds}], False] != {}, 
   Print["The imported FBA vector is absent, zero or violates its constraints, so is ignored!"];
   feasiblepoints = {},
@@ -283,8 +286,8 @@ ReducedSolutionSpace[Stoichiometry_, Bounds_, objectselector_, maxmin_,PrintResu
   	 openflux = FBAflux; (* store the result in case of repeated reduction stage *)];
   progresslabel="Unbounded LP calculation is completed. ",
   FBAflux = openflux];
-  objective = If[VectorQ[FBAflux], objectselector.FBAflux, 0.0];
-  optimum = objectselector.feasiblepoints[[1]];
+  objective = If[VectorQ[FBAflux], objectselector . FBAflux, 0.0];
+  optimum = objectselector . feasiblepoints[[1]];
 	(* Print[{"Optimum, objective",optimum,objective}]; *)
   If[Abs[optimum - objective] < 3*Max[ToExpression@StringSplit[Tolerances, ","]], 
   	(* Some models have a ridiculously large artificial upper limit, such as 10^6.
@@ -598,7 +601,7 @@ Revert[Stoichiometry_, objectselector_, bounds_, feasibles_,
    	constraints = Stoichiometry;
    	values = ConstantArray[0, Length[Stoichiometry]]
    ];
-   values -= constraints.shift;
+   values -= constraints . shift;
    constraints = constraints[[All, nonfixes]];
    (*Remove constraints that are trivial,
    due to removal of columns or a silly original model*)
@@ -670,14 +673,14 @@ KernelFinder[PrintResult_: False] :=
    SStype = "Compact";
    (* Just recenter the Kernel space to an interior point *)
    centershift=MiniMaxcentre[Kernelcons,Kernelvals, PrintResult];
-   KernelSpace[[1,2]] = Kernelvals - Kernelcons.centershift;
-   KernelSpace[[2,1]] = KernelOrigin + centershift.KernelBasis;
+   KernelSpace[[1,2]] = Kernelvals - Kernelcons . centershift;
+   KernelSpace[[2,1]] = KernelOrigin + centershift . KernelBasis;
    AppendTo[Kerneltable, {"RSS is closed, no capping done", cons, vars, 0}];
    ];
   
-  apex = PseudoInverse[Kernelcons].Kernelvals;
+  apex = PseudoInverse[Kernelcons] . Kernelvals;
   (* Print[{"Test for simple cone ",apex,Norm[Kernelcons.apex-Kernelvals]}]; *)
-  If[Norm[Kernelcons.apex - Kernelvals] < LPtol,        (* CASE 3 - a simple cone *)
+  If[Norm[Kernelcons . apex - Kernelvals] < LPtol,        (* CASE 3 - a simple cone *)
    SStype = "SimpleCone";
    KernelSpace[[2, 1]] = apex;
    KernelSpace[[1, 2]] = ConstantArray[0., cons];
@@ -735,12 +738,12 @@ a plausible value, then Skip FBF to apply default tangent capping.", \
    If[raydim == 0, SStype = "Compact";              (* CASE 2 - a bounded polytope *)
    	   (* Recenter the Kernel space to an interior point *)
   	centershift=MiniMaxcentre[Kernelcons,Kernelvals, PrintResult];
-   	KernelSpace[[1,2]] = Kernelvals - Kernelcons.centershift;
-   	KernelSpace[[2,1]] = KernelOrigin + centershift.KernelBasis;
+   	KernelSpace[[1,2]] = Kernelvals - Kernelcons . centershift;
+   	KernelSpace[[2,1]] = KernelOrigin + centershift . KernelBasis;
     AppendTo[Kerneltable, {"SSK is closed, no tangent capping needed", cons, vars, 0}]
    ,
-   apex = PseudoInverse[Kernelcons].Kernelvals;
-   If[Norm[Kernelcons.apex - Kernelvals] < LPtol,        (* CASE 3 - a simple cone *)
+   apex = PseudoInverse[Kernelcons] . Kernelvals;
+   If[Norm[Kernelcons . apex - Kernelvals] < LPtol,        (* CASE 3 - a simple cone *)
     SStype = "SimpleCone";
     KernelSpace[[2, 1]] = apex;
     KernelSpace[[1, 2]] = ConstantArray[0., cons];
@@ -808,7 +811,7 @@ KernelShape[ maxaspect_, maxthin_, PrintResult_: False] :=
  	 
   thindirs = FlatnCentre[KernelSpace, maxaspect, maxthin, PrintResult];
  Print["Check that periphery points satisfy interior requirement: ",
-	outside=Chop@Min@Map[(Kernelvals - Kernelcons.#) &, PeriPoints];
+	outside=Chop@Min@Map[(Kernelvals - Kernelcons . #) &, PeriPoints];
 	If[outside >= -tol, True, "Outside by margin "<>TextString[Abs@outside]]]; 
   progressrange={0,10};progresslabel=" Reorienting enclosing simplex. ";
   Print[Style[progresslabel, Blue, TextAlignment -> Center]];
@@ -920,9 +923,9 @@ KernelDisplay[exportdata_, Printresult_:False] :=
   	 NonfixTransform gives the transformation from FFS to VS.
   *)
   exfeasibles = Chop[UpliftPoint[feasiblepoints, NonfixTransform], 10.^-6];
-  exrays =DeleteDuplicates[Join[prismrays, coincrays, conerays], (1 - Abs[#1.#2] < 10.^-6) &];
+  exrays =DeleteDuplicates[Join[prismrays, coincrays, conerays], (1 - Abs[#1 . #2] < 10.^-6) &];
   If[Length@exrays>0,
-  	exrays = Chop[exrays.NonfixTransform[[2]], 10.^-6];
+  	exrays = Chop[exrays . NonfixTransform[[2]], 10.^-6];
     BaseDim = MatrixRank[exrays, Tolerance -> LPtol],
   	BaseDim = 0];
   exSolutionSpace = ReducedSS;  exKernelSpace = KernelSpace;
@@ -941,7 +944,7 @@ KernelDisplay[exportdata_, Printresult_:False] :=
    ];
   exISphereCentre = 
    Chop[UpliftPoint[Last@InscribedSphere, exKernelTransform], 0.000001];
-  exthindirs=If[thindirs != {},  Chop[thindirs.exSSTransform[[2]], 10^-6], {}];
+  exthindirs=If[thindirs != {},  Chop[thindirs . exSSTransform[[2]], 10^-6], {}];
   (*Print[Dimensions/@{exthindirs,exKernelBasis,exSSBasis,
   NonfixTransform[[2]]}];*)
   fixdirnames=fixdirs;
@@ -1012,7 +1015,7 @@ Repeating and/or reducing flattening, or using more LP chords, may avoid this.\n
    note that the ray part is not a vector fixed to the origin, 
    so is just recast as a vector in the higher dimension*) 
    Kernelpart = UpliftPoint[Kernelpart, RSSTransform];
-   raypart = raypart.RSSBasis;
+   raypart = raypart . RSSBasis;
    (*shortfall= shortfall.RSSBasis;*)
    reconstitute = Kernelpart + raypart + OrthoRay;
    progresscounter++;
@@ -1352,7 +1355,7 @@ UserInterface[controlwindow_, reportwindow_] :=
   stage1 = Panel[Grid[{{FileNameSetter[Dynamic[datafile, (datafile = #;
            Species = FileNameTake[datafile, {-2}]) &], 
         "Open", {"Metabolic models" -> {"*.mat", "*.sbml", "*.xml", 
-           "*.m"}, "All files" -> {"*"}}], 
+           "*.m", "*.WL"}, "All files" -> {"*"}}], 
        InputField[Dynamic[datafile], String, 
         FieldHint -> "Choose the input file.", FieldSize -> 38],
         SpanFromLeft, SpanFromLeft,

@@ -1,7 +1,7 @@
 #!/usr/bin/env wolframscript
 (* ::Package:: *)
 
-workdir=If[$InputFileName=="",NotebookDirectory[],DirectoryName@$InputFileName];
+workdir=DirectoryName[$InputFileName,2];
 Print["Working directory is ",workdir]
 
 SetDirectory[FileNameJoin[{workdir,"Packages"}]];
@@ -16,26 +16,58 @@ Get["FBFsearch`"]
 Get["Capping`"]
 ResetDirectory[];
 PackagesDirectory=FileNameJoin[{workdir,"Packages"}];
+commandline=True; Species="Test"; verbose=False;
 
-datafile=First@FileNames["*.mat"|"*.m", workdir<>"TEST"];
-commandline=True; loadreset=False;  verbose=False; Species="";
-(*Print["There are "<>ToString@Length@$ScriptCommandLine<>" script arguments."];*) 
-If[Length[$ScriptCommandLine]>=2, 
-	datafile=DataDirectory<>$ScriptCommandLine[[2]];
-	(*Print[">",datafile,"<"]*)];
-If[Length[$ScriptCommandLine]==3, 
-	commandstring=StringReplace[$ScriptCommandLine[[3]],"'" -> "\""];
+datadir=workdir<>"TEST"; 
+mfiles=FileNames["*.mat"|"*.m", datadir];
+datafile=First@Cases[mfiles, _?(! StringMatchQ[#, __ ~~ "HyperSpec." ~~ __] &)]
+(* Print["My data directory is ",datadir];
+   Print["My data file is ",datafile]; *)
+
+(* Print["The command line is: ",$ScriptCommandLine]; *)
+   
+args = Drop[$ScriptCommandLine, 1];
+If[MatchQ[args, {arg__String} /; arg != ""],
+(* StringRiffle reassembles an argument string that was split up by blanks *)
+ args=StringTrim@StringRiffle[args];
+ (* Print["Arguments passed: ",">"<>ToString@args<>"<"]; *)
+ controls = StringCases[args, "{" ~~ __ ~~ "}"];
+ controls = If[controls == {}, "", First@controls];
+ (* Print["Control settings extracted are: ",">"<>controls<>"<"]; *)
+ fpath = StringTrim@StringDrop[args, -StringLength@controls];
+ datafile=If[StringLength[fpath]>0, fpath,datafile];
+ fext=FileExtension@datafile;
+	If[fext!="mat" && fext!="m" && fext!="WL",
+		Print["Nope! Datafile of type *."<>fext<>
+		" but I need a file of type *.mat or *.m or *WL as my primary input."];
+		Input["Press x and <Enter> to exit"];Exit[]];
+	datadir=DirectoryName[datafile];
+	,
+	controls=""];
+
+If[controls=="", 
+	Print["Control parameters will default to settings in Configuration.m."],
+	commandstring=StringReplace[controls,"'" -> "\""];
+(* Next line executes control settings. *)
 	commands=ToExpression[commandstring];
 	Print["A total of "<>ToString@Length[commands]<>
-	" parameter values are adjusted by the command line."];
+	" parameter values are adjusted by the command line, as follows:"];
 	Print[commandstring];
 ];
+
 If[!StringQ[datafile]||StringLength[datafile]==0,
-	Print["The file path is empty! If you use SSKernelbatch.bat, drag an input file to it."];
+	Print["The file path is empty! If you use SSKernelbatch.bat,use "Open with " on the desired input file."];
 	Input["Press x and <Enter> to exit"];Exit[]]
+
+Print["My data file is ",datafile]; 
 If[FileExistsQ[datafile], Print["I found the data file, allright!"],
 Print["No file was found at the path "<>datafile];Input["Press x and <Enter> to exit"];Exit[]];
 Print[""];
+
+dowhat = 
+  InputString[
+   "Press x and <Enter> to abort, else just <Enter> to proceed."];
+If[dowhat == "x", Exit[]];
 
 (* STAGE 1 *)
 success=True;
@@ -116,21 +148,22 @@ If[success, Print[Heading],Print["Display of chords and centering has failed."];
 Print[""];		
 		
 (* STAGE 6 *)
-(* Only export first 8 components of exportresults; component 9
-  	  is the RSS structure, not really externally useful. *)
 Heading = {"Full SS Kernel Analysis for " <> Species, 
      " Model " <> FileBaseName[datafile] <> "  with uncapped kernel of type " <> 
       ToString@SStype <> "\n calculated on " <> DateString["DateShort"] <> " in " <> 
       Quiet@ToString[NumberForm[RSStime + Kerneltime + Shapetime + Chordtime, 3]] <> 
       " seconds."}; 
+	  
 CheckAbort[success=Check[
-   	SaveResults[If[Length@ExportResults==0,{},ExportResults[[1;;8]]], datafile],
+   	SaveResults[If[Length@ExportResults==0,{},ExportResults[[1;;9]]], datafile],
    	 False],  success = False];
 
 If[success, Print["Output files have been stored successfully."],
 	Print["Export of output files has failed."]; 
+	Pause[0.5];
 	Input["Press x and <Enter> to exit"];Exit[]];  
 
+Pause[0.5];
 Input["Press x and <Enter> to exit"]; 
 
 

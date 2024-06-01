@@ -40,12 +40,13 @@ TargetInsert[target_, targetname_ : "Target", produce_ : True] :=
   It returns the number of the target column, or an error message.
   
   NOTE: TargetInsert modifies various global arrays defined in Configuraion.m  *)
-  modeldir=If[ValueQ[datafile],FileNameDrop[datafile],NotebookDirectory[]];
+  modeldir=If[ValueQ[datafile],FileNameDrop[datafile],Directory[]];
   Species="ToBeLoaded";  (* Avoids error message in reader function *)
   {rows, cols} = If[Dimensions[S] == {0}, {0, 0}, Dimensions[S]];
+(* Print["Modeldir is "<>modeldir<>" and I have S dimensions "<>ToString[{rows, cols}]]; *)
   If[{rows, cols} != {Length@MetaboliteNames, Length@ReactionNames}, 
    modelfile = SystemDialogInput["FileOpen", {modeldir, 
-   	{"Metab model, text" -> {"*.mat", "*.m"}, "Metab model, sbml" -> {"*.sbml", "*.xml"}, 
+   	{"Metab model, text" -> {"*.mat", "*.m", "*.WL"}, "Metab model, sbml" -> {"*.sbml", "*.xml"}, 
        "All files" -> {"*"}}},  WindowTitle -> 
       "Stoichiometry inconsistent; select the original data file for reloading."];
    If[StringQ[modelfile], LoadModel[modelfile, False]]
@@ -127,12 +128,10 @@ added as an additional column of S !"];
      Rerun the SSK calculation before analysing this target."];
     targetcol = cols,
     
-    ReactionNames[[targetcol]] = 
-     targetname <> ": " <> ReactionNames[[targetcol]]],
+    ReactionNames[[targetcol]] = "Target: "<> ReactionNames[[targetcol]]],
    
    (*Print["Target spec is only a number "];*)
-   ReactionNames[[targetcol]] = 
-    targetname <> ": " <> ReactionNames[[targetcol]]];
+   ReactionNames[[targetcol]] = "Target: " <> ReactionNames[[targetcol]]];
   {Sraw, rawSvals, rawbounds, rawobject, rawFBAvec, rawreacts, 
     rawmets} = {S, Svals, bounds, objectselector, FBAvector, 
     ReactionNames, MetaboliteNames};
@@ -576,10 +575,10 @@ TargetVariation[hyperlist_, valuelist_, perips_, rays_,
   ReducedSS_, targetcol_ : -1, PrintResult_ : False] :=
  (* This function generates descriptive statistics of the variation of a target flux.
  This is taken over a set of hyperplane intersections with the FBA solution space, 
- calculated for an optimized objective.
- The first argument, SuperSample, is a global variable THAT HAS TO BE DECLARED 
- in the calling program. 
- It is returned containing a collection of sample point sets, one set for each  hyperplane.
+ calculated for an optimized objective. 
+ The function returns the complete set of the SS sample points it generates, as
+ a nested list containing the samples for each hyperplane intersection separately.
+ 
  Each element of argument hyperlist specifies a hyperplane that will \
 be sampled. This can have one of two forms: 
 either a list of flux numbers that are constant on the hyperplane, 
@@ -595,7 +594,7 @@ and so forms the last column.
  Module[{fluxcount, SSMedian, SSMean, SSstd, SSRange, SStats, jlist, hypercount,
    samplecount, medlist, meanlist, stdlist, rangelist,
     Hsample, Hrays, SampleValues, SampleMean, SuperSample, SampleMedian, SampleStd,
-    SampleRange, ord, stats, table, numberedstats, samps, meds, means, stds, ranges},
+    SampleRange, ord, stats, title, table, numberedstats, samps, meds, means, stds, ranges},
 
   If[! NumberQ[targetcol], MessageDialog[
   "The target column argument has to be a single number!"]; 
@@ -613,9 +612,10 @@ and so forms the last column.
    ToString[fluxcount] <> " flux dimensions.\n
    If a target column was added, SSKernel has to be run on this extended model first."];
    Return["Invalid data."]];
-   PrintTemporary[Labeled[ProgressIndicator[Dynamic[j], {0, hypercount}, 
+   If[!commandline,
+   	PrintTemporary[Labeled[ProgressIndicator[Dynamic[j], {0, hypercount}, 
     ImageSize -> {260, Automatic}], 
-   "Sampling " <> ToString[hypercount] <> " listed hyperplanes"]];
+   "Sampling " <> ToString[hypercount] <> " listed hyperplanes"]]];
    j = 0.5;
   (* Get sample points and statistics for the RSS extended by rays *)
   {Hsample, Hrays} = 
@@ -631,7 +631,7 @@ and so forms the last column.
   SuperSample = {Hsample};
   
   {jlist, samplecount, medlist, meanlist, stdlist, rangelist} = 
-   Reap[Do[
+   Reap[Do[ If[commandline,WriteString[OutputStream["stdout",1] ,"."]];
       {Hsample, Hrays} = 
        HyperSampler[hyperlist[[j]], valuelist[[j]], perips, rays, ReducedSS, 
         targetcol, PrintResult];
@@ -660,7 +660,7 @@ and so forms the last column.
       Sow[SampleStd, stds];
       Sow[SampleRange, ranges]
       , {j, hypercount}]][[2]];
-  Print["Number of distinct sample points, across all " <> ToString[hypercount] <>
+  Print["\nNumber of distinct sample points, across all " <> ToString[hypercount] <>
   	 " probed hyperplanes: ", Length[DeleteDuplicates@Flatten[SuperSample, 1]]];
 
   (*   Sort by mean and present the results in a table form. *)
@@ -684,17 +684,16 @@ that does not display well *)
   stats = Join[{SStats}, {ConstantArray[" ", 8]}, stats];
   numberedstats = 
    Join[Transpose@{Insert[Range[Length@hyperlist + 1], " ", 2]}, stats, 2];
-   table = Labeled[
-   NumberForm[
-    TableForm[numberedstats[[All, {1, 2, 3, 4, 6, 8, 9}]], 
-     TableHeadings -> {None, {"TRIAL\nNo", "ASSIGNED \nFluxes", 
-        "\nValues", "SAMPLE\nCount"(*,"Median"*), 
-       "TARGET\nMean"(*,"Std dev"*), 
-        "\nLower", "\nUpper"}}], 3], 
-   Style[Capitalize[
-     "Variation of target flux ("<> ReactionNames[[targetcol]]<>") in response to assigning flux values.",
-      "TitleCase"], Bold, Brown], Top];
-  Print[table];
+   title = "Variation of target flux (" <> ReactionNames[[targetcol]] <> 
+   ") in response to assigning flux values.";
+  table = NumberForm[
+   TableForm[numberedstats[[All, {1, 2, 3, 4, 6, 8, 9}]], 
+    TableHeadings -> {None, {"TRIAL\nNo", "ASSIGNED \nFluxes", 
+       "\nValues", "SAMPLE\nCount"(*,"Median"*), "TARGET\nMean"(*,
+       "Std dev"*), "\nLower", "\nUpper"}}, TableSpacing -> {0,3}], 3];
+  Print[""];
+  Print[Style[Capitalize[title, "TitleCase"], Bold, Blue]];
+  If[commandline,Print["\n"<>ToString@table],Print[table]];
   SuperSample
   ]
   

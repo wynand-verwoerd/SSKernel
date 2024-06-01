@@ -1,7 +1,7 @@
 (* ::Package:: *)
 
 (* COPYRIGHT
-					© Copyright 2022 Wynand Verwoerd
+					\[Copyright] Copyright 2022 Wynand Verwoerd
 
 This file is part of SSKernel.
 
@@ -35,6 +35,7 @@ RegSimplexDirections::usage="Finds directions to the sides of a regular simplex 
 RefineCentre::usage="Finds a mutually consistent set of peripheral points and their centroid "
 Retrieve::usage=" Corrects a point that is marginally infeasible "
 Centrality::usage=" Displays a bar plot of diameter pairs"
+ChordPairs::usage=" Extracts the indices in the peripehery point list of the chord endpoint pairs"
 
 deviation
 
@@ -49,14 +50,14 @@ Begin["`Private`"] (* Begin Private Context *)
 UpliftPoint[Lopoint_, transform_] := 
  Module[{pointset}, 
   pointset = If[VectorQ[Lopoint], {Lopoint}, Lopoint]; 
-  pointset = Map[Chop[#.transform[[2]] + transform[[1]], 0.0001] &, pointset];
+  pointset = Map[Chop[# . transform[[2]] + transform[[1]], 0.0001] &, pointset];
    If[VectorQ[Lopoint], pointset[[1]], pointset]
   ]
 DowncastPoint[Hipoint_, transform_] := 
  Module[{pointset}, 
   pointset = If[VectorQ[Hipoint], {Hipoint}, Hipoint]; 
   pointset = 
-   Map[Chop[(# - transform[[1]]).Transpose[transform[[2]]], 0.0001] &, pointset]; 
+   Map[Chop[(# - transform[[1]]) . Transpose[transform[[2]]], 0.0001] &, pointset]; 
     If[VectorQ[Hipoint], pointset[[1]], pointset]
   ]
 
@@ -67,8 +68,8 @@ HMdims=Dimensions[HighToMedium[[2]]];
 MLdims=Dimensions[MediumToLow[[2]]];
 lodim=MLdims[[1]];
 If[MLdims=={lodim,middim} && HMdims=={middim,hidim},
-{HighToMedium[[1]]+MediumToLow[[1]].HighToMedium[[2]],
-	MediumToLow[[2]].HighToMedium[[2]]},
+{HighToMedium[[1]]+MediumToLow[[1]] . HighToMedium[[2]],
+	MediumToLow[[2]] . HighToMedium[[2]]},
 Print["Dimensions of transforms are incompatible!"];{}]
 ]
 
@@ -95,7 +96,7 @@ DowncastConstraints[convecs_, convals_, transform_] :=
    	a downcasted constraint set excluded the current interior origin or became completely infeasible. 
    *)
   bt = Transpose[transform[[2]]];
-  projects = convecs.bt; norms = Norm /@ projects;
+  projects = convecs . bt; norms = Norm /@ projects;
   keepers = Map[If[# > tol, True, False] &, norms];
   (* Print[{"Keepers",keepers,"Norms",norms}]; *)
   norms = Pick[norms, keepers];
@@ -105,14 +106,14 @@ DowncastConstraints[convecs_, convals_, transform_] :=
   Print[{"newvals",newvals}];
   Print[{"Dot",Pick[convecs, keepers].transform[[1]]}];
   *)
-  newvals = Chop[(newvals - Pick[convecs, keepers].transform[[1]])/norms, 0.0001];
+  newvals = Chop[(newvals - Pick[convecs, keepers] . transform[[1]])/norms, 0.0001];
   {newvecs, newvals}]
 
 
 UpliftConstraints[convecs_, convals_, transform_] := 
  Module[{projects, newvals},
-  projects = convecs.transform[[2]];
-  newvals = convals + projects.transform[[1]];
+  projects = convecs . transform[[2]];
+  newvals = convals + projects . transform[[1]];
   {projects, Chop[newvals,0.0001]}
   ]
 
@@ -120,7 +121,7 @@ SolutionTest[flux_, solutionspace_, tol_: 0.001] :=
  Module[{osflux, slacks, satisfy, truncate},
   osflux = DowncastPoint[flux, solutionspace[[2]]];
   slacks = 
-   Chop[solutionspace[[1, 2]] - solutionspace[[1, 1]].osflux, tol];
+   Chop[solutionspace[[1, 2]] - solutionspace[[1, 1]] . osflux, tol];
   (*Print[slacks];*)satisfy = Min[slacks] > -tol;
   truncate = 
    Norm[UpliftPoint[osflux, solutionspace[[2]]] - flux] > tol;
@@ -138,7 +139,7 @@ Module[{SXConstraints, SObjective, SValues, SX, SXRange, cons, vars,
   
   (* Try LSD centering first *)
   center = LSDcentre[constraints,values];
-  If[Min[values - constraints.center]>= 0.,
+  If[Min[values - constraints . center]>= 0.,
   	Return[center], Print["LSD centre infeasible, use CLD to enforce constraints. "]];
   (* But if this turns out to be infeasible, enforce the constraints by LP *)
 
@@ -179,7 +180,7 @@ guarantee that a proper opposing constraint pair is produced *)
   
   (* Reorder the constraints so opposing ones are paired and most \
 significant pair differences get highest weights *)
-  overlaps = A.Transpose[A];
+  overlaps = A . Transpose[A];
   (*Print[MatrixForm@overlaps];Print[b];
   Print[MatrixForm@Outer[Plus,b,b]];*)
   w8laps = overlaps*Outer[Plus, b, b];
@@ -205,8 +206,8 @@ significant pair differences get highest weights *)
   AA = A[[newseq]]; bb = b[[newseq]];
   
   {m, n} = Dimensions[AA]; M = m - 1;
-  DA = Dmat[m].AA;
-  Db = Dmat[m].bb;
+  DA = Dmat[m] . AA;
+  Db = Dmat[m] . bb;
   (*Print[{m,n,M}];*)
   Aall = SparseArray@Join[
      Join[IdentityMatrix[m], ConstantArray[0., {m, M}], AA, 2],
@@ -277,7 +278,7 @@ define a feasible region.",Red]]; Abort[]]
 (* The following centering functions are quick, but are not guaranteed 
 	to give a point inside the polytope *)
   
-LSDcentre[Amat_, bvec_] := Chop[PseudoInverse[Amat].bvec]
+LSDcentre[Amat_, bvec_] := Chop[PseudoInverse[Amat] . bvec]
 
 LSDDcentre[Amat_, bvec_] := 
  Module[{Dmat, rows, distmat, distvec, centre}, 
@@ -286,8 +287,8 @@ LSDDcentre[Amat_, bvec_] :=
     Block[{row = 0}, 
      Flatten@Table[
        row++; {{row, i} -> 1, {row, j} -> -1}, {i, n}, {j, i + 1, n}]];
-  rows = Length[Amat]; distmat = Dmat[rows].Amat; distvec = Dmat[rows].bvec;
-  centre = Chop[PseudoInverse[distmat].distvec]
+  rows = Length[Amat]; distmat = Dmat[rows] . Amat; distvec = Dmat[rows] . bvec;
+  centre = Chop[PseudoInverse[distmat] . distvec]
   ]
   
 MaximalChords[solutionspace_] :=
@@ -424,7 +425,7 @@ MainChords[solutionspace_, chordmax_: 40, chordmin_:10, flipmax_: 50, PrintResul
    oldcentre, centreshift, descend, tol = 0.00001}, 
    {{constraints, values}, {origin, OSBase}} = solutionspace;
   {cons, vars} = Dimensions[constraints];
-  If[vars == 1, chords = {DiagonalMatrix[values].constraints};
+  If[vars == 1, chords = {DiagonalMatrix[values] . constraints};
   	 ChordLengths = Map[Norm[Subtract @@ #] &, chords];
   	 PeriPoints=chords[[1]];
    Return[chords]];
@@ -474,7 +475,7 @@ MainChords[solutionspace_, chordmax_: 40, chordmin_:10, flipmax_: 50, PrintResul
     totalflips++;
    (* Print[{"Mainchords flipping: Flip no, Total flips",flip,totalflips}]; *)
     rotcons = 
-     Chop[XXcons.ArrayFlatten[{{rotation, 0}, {0, rotation}}]];
+     Chop[XXcons . ArrayFlatten[{{rotation, 0}, {0, rotation}}]];
     (*Print[Dimensions@rotcons];*)
     (*NOTE:
     If the coordinate center is on the periphery (i.e., the values vector contains one or 
@@ -520,7 +521,7 @@ MainChords[solutionspace_, chordmax_: 40, chordmin_:10, flipmax_: 50, PrintResul
      (* Protect against infinite loop if no suitable solution is found after many flips *)
      If[totalflips > 2*maxflips, Break[], Continue[]]
      ];
-    AppendTo[perips, {rotation.xx[[;; vars]], rotation.xx[[vars + 1 ;;]]}];
+    AppendTo[perips, {rotation . xx[[;; vars]], rotation . xx[[vars + 1 ;;]]}];
     chordlengths = Norm /@ (perips[[All, 1]] - perips[[All, 2]]);
     longchords = Ordering[chordlengths, -Min[repeats, Length[chordlengths]]];
     (* Exit early if the best value (within a 2% spread) was repeated several times *)
@@ -583,7 +584,7 @@ MainChords[solutionspace_, chordmax_: 40, chordmin_:10, flipmax_: 50, PrintResul
    {{constraints, values}, {origin, OSBase}} = solutionspace;
    (* Print["After RefineCentre, the constraint vectors span "<>ToString[MatrixRank[constraints, Tolerance -> 0.0001]]<>
    	" dimensions for "<>ToString[vars]<>" variables."]; *)
- 	centreshift=(origin-oldcentre).Transpose@OSBase;
+ 	centreshift=(origin-oldcentre) . Transpose@OSBase;
     chords = Map[{#[[1]] - centreshift, #[[2]] - centreshift} &, chords];
     InscribedSphere[[2]] = InscribedSphere[[2]] - centreshift;
 (*
@@ -665,8 +666,8 @@ CenterChords[solutionspace_, knownchords_: {}, printresults_: False] :=
   	inscribed=True; 
   	centreshift = InscribedSphere[[2]];  
   	(* Print["Relocating the origin to inscribed centre at "<>ToString[centreshift]]; *)
-  	values = values - constraints.centreshift;
-  	origin = origin + centreshift.OSBase;
+  	values = values - constraints . centreshift;
+  	origin = origin + centreshift . OSBase;
   	solutionspace = Chop[{{constraints, values}, {origin, OSBase}}];
     chords = Map[{#[[1]] - centreshift, #[[2]] - centreshift} &, chords];
     InscribedSphere[[2]] = InscribedSphere[[2]] - centreshift;
@@ -713,7 +714,7 @@ CenterChords[solutionspace_, knownchords_: {}, printresults_: False] :=
    directions = 
     DeleteDuplicates[
      Normalize /@ 
-       Chop[directions.Transpose[newbasis]].newbasis, (Abs[#1.#2] > 
+       Chop[directions . Transpose[newbasis]] . newbasis, (Abs[#1 . #2] > 
         1 - tol) &];
    directions = Select[directions, Norm[#] > tol &];
    (* Progressively select the longest span, add it to the chords, 
@@ -733,8 +734,8 @@ CenterChords[solutionspace_, knownchords_: {}, printresults_: False] :=
      newbasis = NullSpace[chordvecs, Tolerance -> tol];
      If[Length[newbasis]==0, directions= {}; dirank=0,
      	directions = DeleteDuplicates[Normalize /@ 
-         Chop[directions.Transpose[newbasis]].newbasis, 
-         	(Abs[#1.#2] >  1 - tol) &];
+         Chop[directions . Transpose[newbasis]] . newbasis, 
+         	(Abs[#1 . #2] >  1 - tol) &];
      directions = Select[directions, Norm[#] > tol &]]
      ,
      directions = {}; dirank = 0];
@@ -779,7 +780,7 @@ chord set is still incomplete. *)
    	shift needs to be projected to the lower dimensional space 
    	in which chords are defined.*) 
    	{{constraints, values}, {origin, OSBase}} = solutionspace;
-   	centreshift=(origin-oldcentre).Transpose@OSBase;
+   	centreshift=(origin-oldcentre) . Transpose@OSBase;
     chords = Map[{#[[1]] - centreshift, #[[2]] - centreshift} &, chords];
     InscribedSphere[[2]] = InscribedSphere[[2]] - centreshift;
        ]
@@ -865,7 +866,7 @@ Radii =
    (* For the compiler, dot product needs two matrices. 
    And change the result back to a row vector so comparison with row \
 vector bvec works in compiler *)
-   Avec = Flatten[{vector/norm}.Transpose[Amat]];
+   Avec = Flatten[{vector/norm} . Transpose[Amat]];
    (*Only keep hyperplanes that are forwards inclined by at least a direction cosine>tol;
    in effect that limits the aspect ratio of the polytope*)
    rad1 = Min@Table[
@@ -883,7 +884,7 @@ RegSimplexDirections[Ndim_]:=Block[{SimplexVertices,Rot},
 (* The set of axis cutoffs in N+1 dims *)
 SimplexVertices=IdentityMatrix[Ndim+1];
 (* Rotate the last axis to (1,1,...1); note postmultiply because axes are rotated not vector. *)
-SimplexVertices=SimplexVertices.RotationMatrix[{UnitVector[Ndim+1,Ndim+1],ConstantArray[1.,Ndim+1]}];
+SimplexVertices=SimplexVertices . RotationMatrix[{UnitVector[Ndim+1,Ndim+1],ConstantArray[1.,Ndim+1]}];
 (* Project to N dim and normalise them *)
 SimplexVertices=SimplexVertices[[All,;;-2]];
 SimplexVertices=SimplexVertices/Norm[First@SimplexVertices]
@@ -929,10 +930,10 @@ meanrad =Mean[Select[values,# >= Quantile[values,1/4]&]];
   {cons, vars} = Dimensions[constraints];
   (* In the trivial 1D case, constraints already define periphery points, 
   so just shift the origin  *)
-  If[vars == 1, peripoints = DiagonalMatrix[values].constraints; 
+  If[vars == 1, peripoints = DiagonalMatrix[values] . constraints; 
   	 centroid = Mean[peripoints];
-   	 values = Chop[values - constraints.centroid,tol];
- 	 origin = Chop[origin + centroid.OSBase];
+   	 values = Chop[values - constraints . centroid,tol];
+ 	 origin = Chop[origin + centroid . OSBase];
  	 solutionspace={{constraints,values},{origin,OSBase}}; 
  	 peripoints=Map[(#-origin)&,peripoints];
   Return[peripoints]];
@@ -962,7 +963,7 @@ Print["Entering RefineCentre check that fixed points are inside: ",
  	diameters=  If[iteration < 2 && 1 < facetcount < vars,
     raydiameters = CapRayFinder[constraints[[facet]]]; constraints[[nonfacet]],	constraints];
  	diameters = DeleteDuplicates[ Join[diameters, simplexdiameters, raydiameters], 
- 		Abs[#1.#2] > maxcos &];
+ 		Abs[#1 . #2] > maxcos &];
     (* Add diameters passing through current centroid and chord endpoints, 
     ensuring they are not be eliminated by DeleteDuplicates *)
    	chopdiameters = Map[Normalize[# - CumulativeShift] &, fixes];
@@ -994,7 +995,7 @@ Print["Entering RefineCentre check that fixed points are inside: ",
     Join[diameters*radii[[All, 1]], diameters*radii[[All, 2]]];
    oldvalues = values;
    centroid = Retrieve[solutionspace, Mean[peripoints],PrintResult];
-   values = Chop[values - constraints.centroid, tol];
+   values = Chop[values - constraints . centroid, tol];
    solutionspace[[1,2]] = values; (* Update for the sake of Retrieve in next iteration *)
   (* The following test has become superfluous now that Retrieve corrects 
   any minor numerical error in the centroid *)
@@ -1013,7 +1014,7 @@ This reorientation allows wider sampling of the available directions,
 but can slow convergence by a factor of 5 or more for small 2D examples. 
 In higher dimensions, it seems to have far less effect on convergence.   *)
 	rot=RotationMatrix[{UnitVector[vars,1],RandomReal[{0.,1.},vars]}];
-	simplexdiameters=simplexdiameters.rot;
+	simplexdiameters=simplexdiameters . rot;
 (*
   If[PrintResult,    
    Print["Centre refining iteration "<>ToString[iteration]<>" starts near "<>ToString[facetcount]<>
@@ -1066,7 +1067,7 @@ there may however be a significant difference, so do not rely on this being true
  CumulativeShift = (CumulativeShift - centroid);
 If[PrintResult, Print[ToString[iteration]<>
 	" center refining iterations shifted the center a distance "<>TextString[Norm@CumulativeShift]]];
- origin = Chop[origin + CumulativeShift.OSBase];
+ origin = Chop[origin + CumulativeShift . OSBase];
  solutionspace={{constraints,values},{origin,OSBase}}; 
  fixes = Map[Subtract[#,CumulativeShift]&,fixes];
  If[open, 
@@ -1105,14 +1106,14 @@ Retrieve[solutionspace_, point_, printresult_: False] :=
   {{constraints, values}, {OSorigin, OSbase}} = solutionspace;
   {cons, vars} = Dimensions[constraints];
   newpoint = point;
-  excess = constraints.point - values;
+  excess = constraints . point - values;
   (*Print["Excess : ",excess];*)
   (*For any trivial discrepancies, 
   just move the boundary to include the point as this avoids an LP*)
   Do[If[0 < excess[[i]] < tol, values[[i]] += excess[[i]]], 
   	{i, Length@values}];
   solutionspace = {{constraints, values}, {OSorigin, OSbase}};
-  excess = Chop[constraints.newpoint - values];
+  excess = Chop[constraints . newpoint - values];
   (*Print["Excess : ",excess];*)
   If[Or @@ Positive@excess, 
    vals = Join[-excess, ConstantArray[0., 2*vars]];
@@ -1157,7 +1158,7 @@ Centrality[solutionspace_, chordlengths_, periphery_] :=
   n = Length[chordlengths];
   meanaspect=If[n<2, 1.,
   logmeanaspect = Sum[(n + 1 - 2 i) Log@Abs@chordlengths[[i]], {i, n}];
-  Exp[logmeanaspect/(n(n - 1)/2)]
+  Exp[logmeanaspect/(n (n - 1)/2)]
   ];
   colors=Sign[chordlengths]/. {1 -> Cyan, -1 -> Magenta};
   chordpic = 
@@ -1219,6 +1220,48 @@ the maximal chord lengths (main diameters), even though parallel to them*)
   {chordpic, cenpic}
   ]
 
+ChordPairs[perips_,transform_]:=Module[{diffs,axpairs,SSKperips,chordvecs,count,dim,maxi, nochords,mainchords},
+(* Function to extract main chord endpoints from the list of FFS peripheral points. 
+The argument <transform> is the one that defines the SSK relative
+	to whatever coordinates the point list <perips> is expressed in. 
+It returns a list of index pairs that identify chord endpoints in the <perips> list. *)
+SSKperips=DowncastPoint[perips,transform];
+{count,dim}=Dimensions[SSKperips];
+(* Get all chord vectors*)
+(* Note. Chord lengths can vary by 5 or 6 orders of magnitude. Normalize
+	the difference vectors so Chop can reliably eliminate negligible components.*)
+diffs=Table[Chop[Normalize[SSKperips[[i]]-SSKperips[[j]],Norm[#,1]&],0.0001],
+				{i,count},{j,i+1,count}];
+(* Main chords define the SSK coordinate axes. 
+	Select all chords that are along an axis, i.e. has a single non-zero component *)
+axpairs=Position[diffs,{0...,Except[0],0...},{2}];
+(*Print[axpairs];*)
+chordvecs=Extract[diffs,axpairs];
+(*Print[chordvecs];*)
+If[chordvecs=={},
+ MessageDialog["No chords aligned with the coordinate axes were found.
+Check that the transform passed to ChordPairs is the one that expresses 
+the given periphery points in SSK coordinates, else this is bound to happen! "];
+ Return[{}]];
+
+(* Choose just the longest one along each axis. But if the longest one has 
+	length 0, it is not a chord; alert the user. *)
+mainchords=Flatten@Reap[Do[
+	maxi=First@MaximalBy[chordvecs,Abs[#[[i]]]&,1];
+	Sow[If[maxi[[i]]==0,0,Position[chordvecs,maxi]]],{i,1,dim}]][[2]];
+nochords=Position[mainchords,0];
+If[nochords!={},
+ MessageDialog["No chords were found along axes "<>ToString[Flatten@nochords]<>
+ " of the SSK basis. Most likely these are thin directions not flattened out."];
+ mainchords=Delete[mainchords,nochords]];
+(* Select out the main chord pairs and convert them from index in the 
+	triangular diffs matrix to get them as indices in the periphery points list *)
+axpairs=axpairs[[mainchords]];
+axpairs=Map[{#[[1]],#[[1]]+#[[2]]}&,axpairs];
+(* The actual chord endpoint pairs could be recovered by *)
+     (* chords=Map[perips[[#]]&,axpairs] *)
+axpairs
+]
   
 End[] (* End Private Context *)
 

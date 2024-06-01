@@ -88,7 +88,7 @@ chordpic={}; cenpic={}; flatplot={};
 
 (* GLOBAL VARIABLES FOR SSKernel CALCULATION  *)
 
-KernelSpaceVersion = " Version 1.3 Jan 2024 ";
+KernelSpaceVersion = " Version 1.4 Jun 2024 ";
 DataDirectory=""; (*Base directory path, datafile specified relative to this in command line  version *)
 (* DataDirectory="C:/Users/John Smith/Documents/Data/"; *)       (*EXAMPLE 1: Forward slashes *)
 (* DataDirectory="C:\\Users\\John Smith\\Documents\\Data\\"; *)  (*EXAMPLE 2: Note every \ needs to be doubled*)

@@ -16,7 +16,7 @@ BeginPackage["DataHandler`",{"Configuration`","StringToDouble`"}]
 
 (* Exported symbols added here with SymbolName::usage *)  
 MReader::usage = "Reads input data {modelname, S, bounds, objectvector, FBAvector, 
-	MetaboliteNames, ReactionNames, maxmin} from a Mathematica .m file" 
+	MetaboliteNames, ReactionNames, maxmin} from a Mathematica .m or .WL file" 
 MatReader::usage="Reads input data from a MatLab .mat file, using COBRA spec as in  https://arxiv.org/pdf/1710.04038.pdf  "
 SBMLReader::usage="Reads input data {modelname, S, bounds, objectvector, FBAvector, 
 	MetaboliteNames, ReactionNames, maxmin} from a SBML file "
@@ -29,7 +29,7 @@ Begin["`Private`"] (* Begin Private Context *)
 SetAttributes[MReader, HoldRest];
 MReader[file_, S_, Svals_, bounds_, Object_, FBAvector_, 
 	 ReactionNames_, MetabNames_, maxmin_, printresult_:False] := 
-(* This function reads input data from a Mathematica .m file that contains the numeric 
+(* This function reads input data from a Mathematica .m or .WL file that contains the numeric 
 arrays as a list of the structure 
 		{modelname, S, Svals(Optional), bounds, objectvector, FBAvector, ReactionNames, MetabNames, maxmin}. 
 Here modelname is a string, which may include a formal ID and a desciption of the model. It has to appear first.
