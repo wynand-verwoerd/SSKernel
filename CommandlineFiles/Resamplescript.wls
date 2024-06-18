@@ -48,7 +48,7 @@ If[MatchQ[args, {arg__String} /; arg != ""],
  controls = If[controls == {}, "", First@controls];
 (*  Print["Control settings extracted are: ",">"<>controls<>"<"]; *)
  fpath = StringTrim@StringDrop[args, -StringLength@controls];
- datafile=If[StringLength[fpath]>0, fpath,datafile];
+ datafile=If[StringLength[fpath]>1, fpath,datafile];
 	If[FileExtension@datafile!="dif",
 		Print["Nope! Datafile of type *."<>FileExtension@datafile<>
 		" but I need a file of type *.dif as my primary input."];

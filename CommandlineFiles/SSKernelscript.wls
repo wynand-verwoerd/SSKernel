@@ -22,7 +22,7 @@ datadir=workdir<>"TEST";
 mfiles=FileNames[{"*.mat","*.m","*.wl"}, datadir, IgnoreCase->True];
 datafile=First@Cases[mfiles, _?(! StringMatchQ[#, __ ~~ "HyperSpec." ~~ __] &)]
 (* Print["My data directory is ",datadir];
-   Print["My data file is ",datafile]; *)
+   Print["My data file is ",datafile];  *)
 
 (* Print["The command line is: ",$ScriptCommandLine]; *)
    
@@ -35,7 +35,8 @@ If[MatchQ[args, {arg__String} /; arg != ""],
  controls = If[controls == {}, "", First@controls];
  (* Print["Control settings extracted are: ",">"<>controls<>"<"]; *)
  fpath = StringTrim@StringDrop[args, -StringLength@controls];
- datafile=If[StringLength[fpath]>0, fpath,datafile];
+ (* Print["Extracted fpath = >"<>fpath<>"<"]; *)
+ datafile=If[StringLength[fpath]>1, fpath,datafile];
  fext=ToLowerCase@FileExtension@datafile;
 	If[fext!="mat" && fext!="m" && fext!="wl",
 		Print["Nope! Datafile of type *."<>fext<>
